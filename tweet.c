@@ -34,8 +34,6 @@ int *findOffsetByUser(char *filename, char *username, int *foundOccurences){
 	int *listOffset;
 	int offset = HEADER;		// Offset of the last begin of tweet
 	int nextTweet;				// Offset from the last begin of tweet until the next begin of tweet
-	int sizeText, sizeUsername;	// Size of Text and Username of this tweet
-	char *userRead;				// Username read from file
 	
 	fseek(f, offset, SEEK_SET);
 	while(fread(&nextTweet, sizeof(int), 1, f)) {
