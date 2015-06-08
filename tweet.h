@@ -72,32 +72,32 @@ void writeTweet(char *filename, TWEET *tweet);
  * tweet = fread(offset+sizeof(int))
  */
 // Kike
-TWEET *readTweet(char *filename, int offset);
+TWEET *readTweet(char *filename, long offset);
 
 /*
  * sequential search by user in the register file
  */
 // Carlos
-int *findOffsetByUser(char *filename, char *username, int *foundOccurences);
+long *findOffsetByUser(char *filename, char *username, long *foundOccurences);
 
 /*
  * binary seach by favorite count in the index file
  */
 // Justus
-int *findOffsetByFavoriteCount(char *filename, int favoriteCount, int *foundOccurences);
+long *findOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences);
 
 /*
  * binary seach by language in the index file
  */
 // Justus
-int *findOffsetByLanguage(char *filename, char* language, int *foundOccurences);
+long *findOffsetByLanguage(char *filename, char* language, long *foundOccurences);
 
 /*
  * logically remove the tweet in the data file by its offset
  * logically remove the tweet in the index file by its offset
  */
 // Crocomo
-int removeTweet(char *filename, int offset);
+int removeTweet(char *filename, long offset);
 
 // Crocomo
 void printTweet(TWEET *tweet);
