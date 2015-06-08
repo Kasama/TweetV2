@@ -16,8 +16,31 @@ struct tweet{
 	long  viewsCount;
 
 };
+static long bestFit(char *filename, long tweetSize){
+	long offset, currentDifference, stackPos;
+	
+	FILE *arq = fopen(filename, "r");
+
+	fread(&stackPos, sizeof(long), 1, arq);
+}
 
 void writeTweet(char *filename, TWEET *tweet){
+/*
+ * Writes the tweet into the file
+ * 
+ * byteOffset = bestFit(tweet, *regSize)
+ * fwrite(sizeof(tweet), byteOffset);
+ * fwrite(tweet, byteOffset+sizeof(int))
+ * if ((regSize-sizeof(tweet)) >= sizeof(int)){
+ *   fwrite(-(regSize-sizeof(tweet)), byteOffset+sizeof(int)+sizeof(tweet))
+ * }
+ *
+ */
+	//check for invalid inputs
+	if(filename == NULL || tweet == NULL)
+		return;
+	
+
 	return;
 }
 
