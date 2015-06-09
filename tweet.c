@@ -66,41 +66,45 @@ long *findOffsetByLanguage(char *filename, char* language, long *foundOccurences
 int removeTweet(char *filename, long offset){
 	if(filename == NULL) return 0;
 
+	// tries to open the file and check if it was successful
 	FILE *file = fopen(filename, "r+");
-	
-	//pegando a  cabeça da stack
+	if(file == NULL) return 0;
+	//getting the stack's head
 	long stackHead;
 	fread(&stackHead, sizeof(long), 1, file);
 	
-	//se mover até o offset de remoção
+	//moving til the deletion's offset
 	fseek(file, offset, SEEK_SET);
 	int fieldSize;
-
-	//guarda o tamanho do regitro e se move um int de espaço
+	//saves the size of the register and moves sizeof(int) forward
 	fread(&fieldSize, sizeof(int), 1, file);
-	//se registro já está removido, sair
+	//checks if the register is already removed
 	if(fieldSize <= 0){
 		fclose(file);
 		return 0;
 	}
-	//escreve o long indicando a posição do ultimo removido (cabeça da stack)
+	//writes a long that indicates the position of the last reg removed (stack's head)
 	fwrite(&stackHead, sizeof(long), 1, file);
-	//atualiizando o head da lista
+	//updating the stack's head in the file's beggining
 	fseek(file, SEEK_SET, SEEK_SET);
 	fwrite(&offset, sizeof(long), 1, file);
 	//ver se precisa concatenar o proximo registro
-	int nextFieldSize;
 
+	//goes to the next register and saves it's beggining offset
 	fseek(file, offset + fieldSize, SEEK_SET);
 	long nextRegisterOffset = ftell(file); //a partir do que tá sendo removido
+	//reading the next field Size and checking if it isn't a removed register, in positive case, closes the file and return
+	int nextFieldSize;
 	fread(&nextFieldSize, sizef(int), 1, file);
-	long removalLongContent;  //conteúdo do offset (long) do lado do int do registro removido após o registro de offset recebido na função
-	fread(&removalLongContent, sizeof(long), 1, file);
-
 	if(nextFieldSize > 0) {
 		fclose(file);
 		return 1;
 	}
+	//if we get here, it's because the next register is already removed
+	//saves the content of the offset of the next register (long)
+	long removalLongContent;  //conteúdo do offset (long) do lado do int do registro removido após o registro de offset recebido na função
+	fread(&removalLongContent, sizeof(long), 1, file);
+
 	
 	long currentOffSet = stackHead;
 	long aux = currentOffSet;
@@ -123,11 +127,10 @@ void printTweet(TWEET *tweet){
 	printf("User: %s\n" , 	 		tweet->userName);
 	printf("Coordinate: %s\n", 		tweet->coords);
 	printf("Language: %s\n",		tweet->language);
-	printf("Favorited %d times\n", 	tweet->favoriteCount);
-	printf("Retweeted %d times\n", 	tweet->retweetCount);
+	printf("Favorited %d time%s",tweet->viewsCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
+	printf("Retweeted %d time%s",tweet->retweetCount, (tweet->retweetCount <= 1)?"\n":"s\n");
 	printf("Viewed %d time%s",tweet->viewsCount, (tweet->viewCount <= 1)?"\n":"s\n");
-	(tweet->retweetCount == 1) ? printf("Viewed %d time\n") : printf("Viewed %d times\n", 	tweet->viewsCount);	
-	printf("_________________________________________");
+	printf("_________________________________________________");
 
 	return;
 }
