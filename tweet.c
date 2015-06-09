@@ -25,23 +25,25 @@ static long bestFit(char* filename, long tweetSize, long *minPreviusOffset){
 	*minPreviusOffset = 0;
 
 	FILE *arq = fopen(filename, "r");
-	fread(&stackPos, sizeof(long), 1, arq);
+	if(arq == NULL)
+		return -1;
+
+	if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
 
 	if(stackPos <= 0){
 		fclose(arq);
 		return 0;
 	}
 
-	fseek(arq, stackPos, SEEK_SET);
-	fread(&minDifference, sizeof(int), 1, arq);
+	if(fseek(arq, stackPos, SEEK_SET) != 0)		goto BESTFIT_ERROR;
+	if(fread(&minDifference, sizeof(int), 1, arq) <= 0 )	goto BESTFIT_ERROR;
 	minDifference *= -1;
 	currentPreviusOffset = stackPos;
-	fread(&stackPos, sizeof(long), 1, arq);
+	if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
 
 	while(stackPos != -1 && minDifference >= 0){
-		//currentPreviusOffset = stackPos;
-		fseek(arq, stackPos, SEEK_SET);
-		fread(&blockSize, sizeof(int), 1, arq);
+		if(fseek(arq, stackPos, SEEK_SET) != 0) goto BESTFIT_ERROR;
+		if(fread(&blockSize, sizeof(int), 1, arq) <= 0) goto BESTFIT_ERROR;
 		blockSize *= -1;
 		currentDifference = blockSize - tweetSize;
 
@@ -50,12 +52,14 @@ static long bestFit(char* filename, long tweetSize, long *minPreviusOffset){
 			*minPreviusOffset = currentPreviusOffset;
 		}
 		currentPreviusOffset = stackPos;	
-		fread(&stackPos, sizeof(long), 1, arq);
+		if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
 	}
 
+BESTFIT_ERROR:
 	fclose(arq);
 	return offset;	
 }
+
 static long tweetSize(TWEET* tweet){
 	long sum = 0;
 	sum += strlen(tweet->text);
@@ -72,31 +76,36 @@ static void flushTweet(char* filename, long byteOffset, long fieldsize, TWEET *t
 	FILE *arq = NULL;
 	if(byteOffset == 0){
 		arq = fopen(filename, "a");
+		if(arq == NULL) return;
 	}else{
 		arq = fopen(filename, "w+");
-		fseek(arq, byteOffset, SEEK_SET);
+		if(arq == NULL) return;
+		if(fseek(arq, byteOffset, SEEK_SET) != 0)	goto FLUSHTWEET_EXIT;
 	}
-	fwrite(&fieldsize, sizeof(int), 1, arq);
-	fwrite(tweet->text, sizeof(int), 1, arq);
-	fwrite(tweet->userName, sizeof(int), 1, arq);
-	fwrite(tweet->coords, sizeof(int), 1, arq);
-	fwrite(tweet->language, sizeof(int), 1, arq);
-	
+	if(fwrite(&fieldsize, sizeof(int), 1, arq) <= 0)		goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->text, sizeof(int), 1, arq) <= 0)		goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->userName, sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->coords, sizeof(int), 1, arq) <= 0)		goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->language, sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
+
+FLUSHTWEET_EXIT:
 	fclose(arq);
 }
+
 void writeTweet(char *filename, TWEET *tweet){
-	if(filename == NULL || tweet  == NULL)	
-		return;
+	if(filename == NULL || tweet  == NULL) return;
 
 	long tweetsize = tweetSize(tweet);
 	long previusOffset, previusOffsetValue;
 	long byteOffset  = bestFit(filename, tweetsize, &previusOffset);
-	if(filename == NULL || tweet == NULL)
-		return;
-	FILE *arq = fopen(filename, "w+");
 	
+	if(filename == NULL || tweet == NULL) return;
+
+	FILE *arq = fopen(filename, "w+");
+	if(arq == NULL) return;
+
 	int fieldSize;
-	fread(&fieldSize, sizeof(int), 1, arq);
+	if(fread(&fieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;
 	fieldSize *= -1;
 	
 	long newFieldSize = fieldSize - (tweetsize + sizeof(int));
@@ -104,18 +113,21 @@ void writeTweet(char *filename, TWEET *tweet){
 		flushTweet(filename, byteOffset, tweetsize, tweet);
 	}
 	else if(newFieldSize < minTweetSize){
-		fseek(arq, byteOffset + sizeof(int), SEEK_SET);
-		fread(&previusOffsetValue, sizeof(long), 1, arq);
-		fseek(arq, previusOffset + sizeof(int), SEEK_SET);
-		fwrite(&previusOffsetValue, sizeof(long), 1, arq);
+		if(fseek(arq, byteOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT;
+		if(fread(&previusOffsetValue, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;
+		if(fseek(arq, previusOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT;
+		if(fwrite(&previusOffsetValue, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;
 		flushTweet(filename, byteOffset, fieldSize, tweet);
 	}else{
 		newFieldSize *= -1;			
-		fseek(arq, byteOffset, SEEK_SET);
-		fwrite(&newFieldSize, sizeof(int), 1, arq);
+		if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;
+		if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;
 		byteOffset += sizeof(int) + newFieldSize;
 		flushTweet(filename, byteOffset, tweetsize, tweet);
 	}
+
+WRITETWEET_EXIT:
+	fclose(arq);
 }
 
 TWEET *readTweet(char *filename, int offset){
