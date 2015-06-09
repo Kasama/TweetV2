@@ -96,10 +96,18 @@ int removeTweet(char *filename, long offset){
 	//reading the next field Size and checking if it isn't a removed register, in positive case, closes the file and return
 	int nextFieldSize;
 	fread(&nextFieldSize, sizef(int), 1, file);
+		//just backs to the register to be deleted and marks it as removed (negative)
+	/*
 	if(nextFieldSize > 0) {
+		fseek(file, offset, SEEK_SET);
+		fieldSize *= -1;
+		fwrite(&fieldSize, sizeof(int), 1, file);
 		fclose(file);
 		return 1;
 	}
+	*/
+	markAsRemoved(file, fieldSize, nextFieldSize);
+	return 1;
 	//if we get here, it's because the next register is already removed
 	//saves the content of the offset of the next register (long)
 	long removalLongContent;  //conteúdo do offset (long) do lado do int do registro removido após o registro de offset recebido na função
@@ -116,10 +124,26 @@ int removeTweet(char *filename, long offset){
 	fseek(file, aux + sizeof(int), SEEK_SET);
 	fwrite(&removalLongContent, sizeof(long), 1, file);
 
+	markAsRemoved(file, fieldSize, nextFieldSize);
+	/*
+	fseek(file, offset, SEEK_SET);
+	fieldSize *= -1;
+	fieldSize += nextFieldSize;
+	fwrite(&fieldSize, sizeof(int), 1, file);
 	fclose(file);
+	*/
 	return 1;
 }
 
+void markAsRemoved(FILE *file, int fieldSize, int nextFieldSize) {
+	fseek(file, offset, SEEK_SET);
+	fieldSize *= -1;
+	if(nextFieldSize < 0)
+		fieldSize += nextFieldSize;
+	fwrite(&fieldSize, sizeof(int), 1, file);
+
+	return;
+}
 void printTweet(TWEET *tweet){
 	if(tweet == NULL) return;
 
