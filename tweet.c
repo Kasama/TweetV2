@@ -20,6 +20,51 @@ struct tweet{
 
 };
 
+typedef struct favIndexItem{
+
+	int favoriteCount;
+	long byteOffset;
+
+}FAVITEM;
+
+typedef struct favIndexListItem{
+	
+	long fileOffset;
+	long next;
+
+}FAVLISTITEM;
+
+typedef struct langIndexItem{
+
+	char language[MAX_LANGUAGE_SIZE];
+	long byteOffset;
+
+}LANGITEM;
+
+typedef struct langIndexListItem{
+	
+	long fileOffset;
+	long next;
+
+}LANGLISTITEM;
+
+int compareLanguageItem(const void* o1, const void* o2){
+	LANGITEM *i1 = (LANGITEM*) o1;
+	LANGITEM *i2 = (LANGITEM*) o2;
+	return strcmp(i1->language, i2->language);
+}
+
+int compareFavoriteItem(const void* o1, const void* o2){
+	FAVITEM *i1 = (FAVITEM*) o1;
+	FAVITEM *i2 = (FAVITEM*) o2;
+	if (i1->favoriteCount < i2->favoriteCount)
+		return -1;
+	else if (i1->favoriteCount == i2->favoriteCount)
+		return 0;
+	else
+		return 1;
+}
+
 void writeTweet(char *filename, TWEET *tweet){
 	return;
 }
@@ -93,29 +138,51 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	return listOffset;
 }
 
-typedef struct favIndexItem{
+void generateIndexes(char *filename){
 
-	int favoriteCount;
-	long byteOffset;
+	// Open all files (goto the end of this function if any errors occur)
+	char *dataFileName = getDataFileName(filename);
+	FILE *dataFile = fopen(dataFileName, "r");
+	free(dataFileName);
+	if (dataFile == NULL) return;
+	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
+	FILE *favIdxTabFile = fopen(dataFileName, "w");
+	free(favIdxTabFileName);
+	if (favIdxTabFile == NULL) goto generateIdxData;
+	char *favIdxListFileName = getFavoriteListIndexFileName(filename);
+	FILE *favIdxListFile = fopen(dataFileName, "w");
+	free(favIdxListFileName);
+	if (favIdxListFile == NULL) goto generateIdxFTAB;
+	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
+	FILE *langIdxTabFile = fopen(dataFileName, "w");
+	free(langIdxTabFileName);
+	if (favIdxTabFile == NULL) goto generateIdxFLIST;
+	char *langIdxListFileName = getLanguageListIndexFileName(filename);
+	FILE *langIdxListFile = fopen(dataFileName, "w");
+	free(langIdxListFileName);
+	if (langIdxListFile == NULL) goto generateIdxLTAB;
 
-}FAVITEM;
+	long offset;
+	TWEET *current;
+	fseek(dataFile, HEADER, SEEK_SET);
+	fread(&offset, sizeof offset, 1, dataFile);
+	if (offset > 0)
+		current = readTweet(filename, offset);
+	//TODO everything
 
-typedef struct favIndexListItem{
-	
-	long fileOffset;
-	long next;
 
-}FAVLISTITEM;
 
-int compareFavoriteItem(const void* o1, const void* o2){
-	FAVITEM *i1 = (FAVITEM*) o1;
-	FAVITEM *i2 = (FAVITEM*) o2;
-	if (i1->favoriteCount < i2->favoriteCount)
-		return -1;
-	else if (i1->favoriteCount == i2->favoriteCount)
-		return 0;
-	else
-		return 1;
+generateIdxLLIST:
+	fclose(langIdxListFile);
+generateIdxLTAB:
+	fclose(langIdxTabFile);
+generateIdxFLIST:
+	fclose(favIdxListFile);
+generateIdxFTAB:
+	fclose(favIdxTabFile);
+generateIdxData:
+	fclose(dataFile);
+
 }
 
 long *findOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences){
@@ -170,26 +237,6 @@ findFavRetList:
 	fclose(fileList);
 findFavRet:
 	return ret;
-}
-
-typedef struct langIndexItem{
-
-	char language[MAX_LANGUAGE_SIZE];
-	long byteOffset;
-
-}LANGITEM;
-
-typedef struct langIndexListItem{
-	
-	long fileOffset;
-	long next;
-
-}LANGLISTITEM;
-
-int compareLanguageItem(const void* o1, const void* o2){
-	LANGITEM *i1 = (LANGITEM*) o1;
-	LANGITEM *i2 = (LANGITEM*) o2;
-	return strcmp(i1->language, i2->language);
 }
 
 // NEED TO BE FINISHED!!
