@@ -69,81 +69,52 @@ int removeTweet(char *filename, long offset){
 	// tries to open the file and check if it was successful
 	FILE *file = fopen(filename, "r+");
 	if(file == NULL) return 0;
+
 	//getting the stack's head
 	long stackHead;
-	fread(&stackHead, sizeof(long), 1, file);
+	if(fread(&stackHead, sizeof(long), 1, file) == 0)
+		goto fileFunctionError;
 	
-	//moving til the deletion's offset
-	fseek(file, offset, SEEK_SET);
+	//tries to move til the deletion's offset
+	if(fseek(file, offset, SEEK_SET) == -1)
+		goto fileFunctionError;
 	int fieldSize;
-	//saves the size of the register and moves sizeof(int) forward
-	fread(&fieldSize, sizeof(int), 1, file);
+
+	//tries to save the size of the register and moves sizeof(int) forward
+	if(fread(&fieldSize, sizeof(int), 1, file) == 0)
+		goto fileFunctionError;
+
 	//checks if the register is already removed
-	if(fieldSize <= 0){
+	if(fieldSize <= 0) {
 		fclose(file);
 		return 0;
 	}
-	//writes a long that indicates the position of the last reg removed (stack's head)
-	fwrite(&stackHead, sizeof(long), 1, file);
-	//updating the stack's head in the file's beggining
-	fseek(file, SEEK_SET, SEEK_SET);
-	fwrite(&offset, sizeof(long), 1, file);
-	//ver se precisa concatenar o proximo registro
 
-	//goes to the next register and saves it's beggining offset
-	fseek(file, offset + fieldSize, SEEK_SET);
-	long nextRegisterOffset = ftell(file); //a partir do que tá sendo removido
-	//reading the next field Size and checking if it isn't a removed register, in positive case, closes the file and return
-	int nextFieldSize;
-	fread(&nextFieldSize, sizef(int), 1, file);
-		//just backs to the register to be deleted and marks it as removed (negative)
-	/*
-	if(nextFieldSize > 0) {
-		fseek(file, offset, SEEK_SET);
-		fieldSize *= -1;
-		fwrite(&fieldSize, sizeof(int), 1, file);
-		fclose(file);
-		return 1;
-	}
-	*/
-	markAsRemoved(file, fieldSize, nextFieldSize);
-	return 1;
-	//if we get here, it's because the next register is already removed
-	//saves the content of the offset of the next register (long)
-	long removalLongContent;  //conteúdo do offset (long) do lado do int do registro removido após o registro de offset recebido na função
-	fread(&removalLongContent, sizeof(long), 1, file);
+	//tries to write a long that indicates the position of the last reg removed (stack's head)
+	if(fwrite(&stackHead, sizeof(long), 1, file) == 0)
+		goto fileFunctionError;
 
-	
-	long currentOffSet = stackHead;
-	long aux = currentOffSet;
-	while(currentOffSet != nextRegisterOffset && currentOffSet != -1) {
-		fseek(file, currentOffSet + sizeof(int), SEEK_SET);
-		aux = currentOffSet;
-		fread(&currentOffSet, sizeof(long), 1, file);
-	}
-	fseek(file, aux + sizeof(int), SEEK_SET);
-	fwrite(&removalLongContent, sizeof(long), 1, file);
+	//tries to update the stack's head in the file's beggining
+	if(fseek(file, SEEK_SET, SEEK_SET) == -1)
+		goto fileFunctionError;
+	if(fwrite(&offset, sizeof(long), 1, file) == 0)
+		goto fileFunctionError;
 
-	markAsRemoved(file, fieldSize, nextFieldSize);
-	/*
-	fseek(file, offset, SEEK_SET);
+	//tries to back to the register and mark it as removed (negative)
+	if(fseek(file, offset, SEEK_SET) == -1)
+		goto fileFunctionError;
 	fieldSize *= -1;
-	fieldSize += nextFieldSize;
-	fwrite(&fieldSize, sizeof(int), 1, file);
+	if(fwrite(&fieldSize, sizeof(int), 1, file) == 0)
+		goto fileFunctionError;
+
 	fclose(file);
-	*/
 	return 1;
+
+fileFunctionError:
+	fclose(file);
+	return 0;
 }
 
-void markAsRemoved(FILE *file, int fieldSize, int nextFieldSize) {
-	fseek(file, offset, SEEK_SET);
-	fieldSize *= -1;
-	if(nextFieldSize < 0)
-		fieldSize += nextFieldSize;
-	fwrite(&fieldSize, sizeof(int), 1, file);
-
-	return;
-}
 void printTweet(TWEET *tweet){
 	if(tweet == NULL) return;
 
