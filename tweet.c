@@ -36,7 +36,8 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	long nextTweet;				// Offset from the last begin of tweet until the next begin of tweet
 	
 	fseek(f, offset, SEEK_SET);
-	while(fread(&nextTweet, sizeof(long), 1, f)) {
+	while(fread(&nextTweet, 
+		sizeof(long), 1, f)) {
 		if (nextTweet > 0){
 			tt = readTweet(filename, offset);
 			if (!strcmp(username, tt->userName)) {
@@ -63,9 +64,70 @@ long *findOffsetByLanguage(char *filename, char* language, long *foundOccurences
 }
 
 int removeTweet(char *filename, long offset){
-	return 0;
+	if(filename == NULL) return 0;
+
+	FILE *file = fopen(filename, "r+");
+	
+	//pegando a  cabeça da stack
+	long stackHead;
+	fread(&stackHead, sizeof(long), 1, file);
+	
+	//se mover até o offset de remoção
+	fseek(file, offset, SEEK_SET);
+	int fieldSize;
+
+	//guarda o tamanho do regitro e se move um int de espaço
+	fread(&fieldSize, sizeof(int), 1, file);
+	//se registro já está removido, sair
+	if(fieldSize <= 0){
+		fclose(file);
+		return 0;
+	}
+	//escreve o long indicando a posição do ultimo removido (cabeça da stack)
+	fwrite(&stackHead, sizeof(long), 1, file);
+	//atualiizando o head da lista
+	fseek(file, SEEK_SET, SEEK_SET);
+	fwrite(&offset, sizeof(long), 1, file);
+	//ver se precisa concatenar o proximo registro
+	int nextFieldSize;
+
+	fseek(file, offset + fieldSize, SEEK_SET);
+	long nextRegisterOffset = ftell(file); //a partir do que tá sendo removido
+	fread(&nextFieldSize, sizef(int), 1, file);
+	long removalLongContent;  //conteúdo do offset (long) do lado do int do registro removido após o registro de offset recebido na função
+	fread(&removalLongContent, sizeof(long), 1, file);
+
+	if(nextFieldSize > 0) {
+		fclose(file);
+		return 1;
+	}
+	
+	long currentOffSet = stackHead;
+	long aux = currentOffSet;
+	while(currentOffSet != nextRegisterOffset && currentOffSet != -1) {
+		fseek(file, currentOffSet + sizeof(int), SEEK_SET);
+		aux = currentOffSet;
+		fread(&currentOffSet, sizeof(long), 1, file);
+	}
+	fseek(file, aux + sizeof(int), SEEK_SET);
+	fwrite(&removalLongContent, sizeof(long), 1, file);
+
+	fclose(file);
+	return 1;
 }
 
 void printTweet(TWEET *tweet){
+	if(tweet == NULL) return;
+
+	printf("Tweet: %s\n", 			tweet->text);
+	printf("User: %s\n" , 	 		tweet->userName);
+	printf("Coordinate: %s\n", 		tweet->coords);
+	printf("Language: %s\n",		tweet->language);
+	printf("Favorited %d times\n", 	tweet->favoriteCount);
+	printf("Retweeted %d times\n", 	tweet->retweetCount);
+	printf("Viewed %d time%s",tweet->viewsCount, (tweet->viewCount <= 1)?"\n":"s\n");
+	(tweet->retweetCount == 1) ? printf("Viewed %d time\n") : printf("Viewed %d times\n", 	tweet->viewsCount);	
+	printf("_________________________________________");
+
 	return;
 }
