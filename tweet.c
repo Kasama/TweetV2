@@ -33,21 +33,25 @@ TWEET *newTweet(				\
 	TWEET *tw;
 	tw = malloc(sizeof(TWEET));
 
-	tw->text = malloc((strlen(text)) + 1);
-	tw->userName = malloc((strlen(userName)) + 1);
-	tw->coords = malloc((strlen(coords)) + 1);
-	tw->language = malloc((strlen(language)) + 1);
+	tw->text = malloc((strlen(text)) + 2);
+	tw->userName = malloc((strlen(userName)) + 2);
+	tw->coords = malloc((strlen(coords)) + 2);
+	tw->language = malloc((strlen(language)) + 2);
 
 	strcpy(tw->text, text);
 	strcpy(tw->userName, userName);
 	strcpy(tw->coords, coords);
 	strcpy(tw->language, language);
 
-	strcat(tw->text, END_FIELD);
-	strcat(tw->userName, END_FIELD);
-	strcat(tw->coords, END_FIELD);
-	strcat(tw->language, END_FIELD);
-
+	tw->text[strlen(text)] = END_FIELD;
+	tw->text[strlen(text)+1] = '\0';
+	tw->userName[strlen(userName)] = END_FIELD;
+	tw->userName[strlen(userName)+1] = '\0';
+	tw->coords[strlen(coords)] = END_FIELD;
+	tw->coords[strlen(coords)+1] = '\0';
+	tw->language[strlen(language)] = END_FIELD;
+	tw->language[strlen(language)+1] = '\0';
+	
 	tw->favoriteCount = favoriteCount;
 	tw->retweetCount = retweetCount;
 	tw->viewsCount = viewsCount;
