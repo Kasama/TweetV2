@@ -31,7 +31,8 @@ static long bestFit(char* filename, long tweetSize, long *minPreviusOffset){
 	if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
 
 	if(stackPos <= 0){
-		fclose(arq);
+		if(arq !=NULL)
+			fclose(arq);
 		return 0;
 	}
 
@@ -56,7 +57,8 @@ static long bestFit(char* filename, long tweetSize, long *minPreviusOffset){
 	}
 
 BESTFIT_ERROR:
-	fclose(arq);
+	if(arq != NULL)
+		fclose(arq);
 	return offset;	
 }
 
@@ -89,7 +91,8 @@ static void flushTweet(char* filename, long byteOffset, long fieldsize, TWEET *t
 	if(fwrite(tweet->language, sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
 
 FLUSHTWEET_EXIT:
-	fclose(arq);
+	if(arq != NULL)
+		fclose(arq);
 }
 
 void writeTweet(char *filename, TWEET *tweet){
@@ -127,7 +130,8 @@ void writeTweet(char *filename, TWEET *tweet){
 	}
 
 WRITETWEET_EXIT:
-	fclose(arq);
+	if(arq != NULL)
+		fclose(arq);
 }
 
 TWEET *readTweet(char *filename, int offset){
