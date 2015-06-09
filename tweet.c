@@ -182,3 +182,17 @@ int removeTweet(char *filename, int offset){
 void printTweet(TWEET *tweet){
 	return;
 }
+
+static void destoryTweet (TWEET **tweet){
+	if(tweet == NULL || *tweet == NULL)
+		return;
+
+	free((*tweet)->text);
+	free((*tweet)->userName);
+	free((*tweet)->coords);
+	free((*tweet)->language);
+	
+	if(*tweet != NULL)
+		free((*tweet));
+	tweet == NULL;
+}
