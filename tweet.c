@@ -192,7 +192,6 @@ static void destoryTweet (TWEET **tweet){
 	free((*tweet)->coords);
 	free((*tweet)->language);
 	
-	if(*tweet != NULL)
-		free((*tweet));
+	free(*tweet);
 	tweet == NULL;
 }
