@@ -21,8 +21,53 @@ void writeTweet(char *filename, TWEET *tweet){
 	return;
 }
 
+char *readField(FILE *stream) {
+	char *buffer = NULL;
+	char character;
+	int counter = 0;
+
+	do {
+		character = fgetc(stream);
+		buffer = (char *) realloc(buffer, sizeof(char)
+				* (counter+1));
+		buffer[counter++] = character;
+	} while (character != END_FIELD && character != '\n');
+	buffer[counter-1] = '\0';
+
+	return buffer;
+}
+
 TWEET *readTweet(char *filename, long offset){
-	return NULL;
+	int i, size;
+	FILE *dataFile;
+	char buff;
+
+	TWEET *tw;
+
+	tw = malloc(sizeof(TWEET));
+
+	dataFile = fopen(filename, "r");
+
+	fseek(dataFile, offset, SEEK_SET);
+	fread(&size, sizeof(int), 1, dataFile);
+
+	void *dataRaw;
+	dataRaw = malloc(size);
+
+	fread(dataRaw, size, 1, dataFile);
+
+	FILE *mem;
+	mem = fmemopen(dataRaw, size, "r");
+
+	tw->text = readField(mem);
+	tw->userName = readField(mem);
+	tw->coords = readField(mem);
+	tw->language = readField(mem);
+	fread(&(tw->favoriteCount), sizeof(int), 1, mem); 
+	fread(&(tw->retweetCount), sizeof(int), 1, mem); 
+	fread(&(tw->viewsCount), sizeof(long), 1, mem);
+
+	return tw; 
 }
 
 long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
