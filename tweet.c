@@ -21,6 +21,40 @@ void writeTweet(char *filename, TWEET *tweet){
 	return;
 }
 
+TWEET *newTweet(				\
+		char   *text,           \
+		char   *userName,       \
+		char   *coords,         \
+		char   *language,       \
+		int    favoriteCount,   \
+		int    retweetCount,    \
+		long   viewsCount       \
+){
+	TWEET *tw;
+	tw = malloc(sizeof(TWEET));
+
+	tw->text = malloc((strlen(text)) + 1);
+	tw->userName = malloc((strlen(userName)) + 1);
+	tw->coords = malloc((strlen(coords)) + 1);
+	tw->language = malloc((strlen(language)) + 1);
+
+	strcpy(tw->text, text);
+	strcpy(tw->userName, userName);
+	strcpy(tw->coords, coords);
+	strcpy(tw->language, language);
+
+	strcat(tw->text, END_FIELD);
+	strcat(tw->userName, END_FIELD);
+	strcat(tw->coords, END_FIELD);
+	strcat(tw->language, END_FIELD);
+
+	tw->favoriteCount = favoriteCount;
+	tw->retweetCount = retweetCount;
+	tw->viewsCount = viewsCount;
+
+	return tw;
+}
+
 char *readField(FILE *stream) {
 	char *buffer = NULL;
 	char character;
