@@ -72,17 +72,14 @@ int removeTweet(char *filename, long offset){
 
 	//getting the stack's head
 	long stackHead;
-	if(fread(&stackHead, HEADER, 1, file) == 0)
-		goto fileFunctionError;
+	if(fread(&stackHead, HEADER, 1, file) == 0) goto fileFunctionError;
 	
 	//tries to move til the deletion's offset
-	if(fseek(file, offset, SEEK_SET) != 0)
-		goto fileFunctionError;
+	if(fseek(file, offset, SEEK_SET) != 0) goto fileFunctionError;
 	int fieldSize;
 
 	//tries to save the size of the register and moves sizeof(int) forward
-	if(fread(&fieldSize, sizeof(int), 1, file) == 0)
-		goto fileFunctionError;
+	if(fread(&fieldSize, sizeof(int), 1, file) == 0) goto fileFunctionError;
 
 	//checks if the register is already removed
 	if(fieldSize <= 0) {
@@ -91,21 +88,16 @@ int removeTweet(char *filename, long offset){
 	}
 
 	//tries to write a long that indicates the position of the last reg removed (stack's head)
-	if(fwrite(&stackHead, sizeof(long), 1, file) == 0)
-		goto fileFunctionError;
+	if(fwrite(&stackHead, sizeof(long), 1, file) == 0) goto fileFunctionError;
 
 	//tries to update the stack's head in the file's beginning
-	if(fseek(file, SEEK_SET, SEEK_SET) != 0)
-		goto fileFunctionError;
-	if(fwrite(&offset, sizeof(long), 1, file) == 0)
-		goto fileFunctionError;
+	if(fseek(file, SEEK_SET, SEEK_SET) != 0) goto fileFunctionError;
+	if(fwrite(&offset, sizeof(long), 1, file) == 0) goto fileFunctionError;
 
 	//tries to back to the register and mark it as removed (negative)
-	if(fseek(file, offset, SEEK_SET) != 0)
-		goto fileFunctionError;
+	if(fseek(file, offset, SEEK_SET) != 0) goto fileFunctionError;
 	fieldSize *= -1;
-	if(fwrite(&fieldSize, sizeof(int), 1, file) == 0)
-		goto fileFunctionError;
+	if(fwrite(&fieldSize, sizeof(int), 1, file) == 0) goto fileFunctionError;
 
 	fclose(file);
 	return 1;
