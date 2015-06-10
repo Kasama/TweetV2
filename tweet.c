@@ -9,6 +9,33 @@
 #define UPDATED 1
 #define MAX_LANGUAGE_SIZE 50
 
+int binarySearch(										\
+	register const void *key,							\
+	const void *base0,									\
+	size_t nmemb,										\
+	register size_t size,								\
+	register int (*compar)(const void *, const void *)	\
+) {
+
+	register const char *base = base0;
+	register size_t lim;
+	register int cmp;
+	register const void *p;
+
+	for (lim = nmemb; lim != 0; lim >>= 1) {
+		int index = (lim >> 1) * size;
+		p = base + index;
+		cmp = (*compar)(key, p);
+		if (cmp == 0)
+			return index;
+		if (cmp > 0) {	/* key > p: move right */
+			base = (char *)p + size;
+			lim--;
+		}		/* else move left */
+	}
+	return -1;
+}
+
 struct tweet{
 
 	char  *text;
@@ -411,10 +438,10 @@ static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 	FAVITEM key;
 	key.favoriteCount = favoriteCount;
 
-	FAVITEM *found = bsearch(&key, items, nTweets, sizeof(FAVITEM), compareFavoriteItem);
-	if (found == NULL)
+	int found = binarySearch(&key, items, nTweets, sizeof(FAVITEM), compareFavoriteItem);
+	if (found == -1)
 		goto findFavRetTab;
-	ret = found->byteOffset;
+	ret = (found*sizeof(FAVITEM))+INDEXHEADER;
 
 findFavRetTab:
 	fclose(fileTab);
@@ -448,11 +475,11 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 	strncpy(key.language, language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
 	key.language[MAX_LANGUAGE_SIZE-1] = 0;
 
-	LANGITEM *found = bsearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
-	if (found == NULL)
+	int found = binarySearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
+	if (found == -1)
 		goto findLangRetTab;
 
-	ret = found->byteOffset;
+	ret = (found*sizeof(LANGITEM))+INDEXHEADER;
 
 findLangRetTab:
 	fclose(fileTab);
@@ -466,10 +493,16 @@ long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *fou
 	char *listFileName = getFavoriteListIndexFileName(filename);
 	FILE *fileList = fopen(listFileName, "r");
 	free(listFileName);
+	char *tabFileName = getFavoriteTableIndexFileName(filename);
+	FILE *fileTab = fopen(tabFileName, "r");
+	free(tabFileName);
 
 	long offset;
 	offset = findIndexOffsetByFavoriteCount(filename, favoriteCount);
-	fseek(fileList, offset, SEEK_SET);
+	fseek(fileTab, offset, SEEK_SET);
+	FAVITEM i;
+	fread(&i, sizeof i, 1, fileTab);
+	fseek(fileList, i.byteOffset, SEEK_SET);
 
 	FAVLISTITEM current;
 	do {
@@ -482,6 +515,8 @@ long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *fou
 		ret[(*foundOccurences)-1] = current.fileOffset;
 	}while(current.next != -1);
 
+findFavRetTab:
+	fclose(fileTab);
 findFavRetList:
 	fclose(fileList);
 findFavRet:
@@ -520,10 +555,12 @@ long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccure
 	strncpy(key.language, language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
 	key.language[MAX_LANGUAGE_SIZE-1] = 0;
 
-	LANGITEM *found = bsearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
-	if (found == NULL)
-		goto findLangRetList;
-	fseek(fileList, found->byteOffset, SEEK_SET);
+	long offset;
+	offset = findIndexOffsetByLanguage(filename, language);
+	fseek(fileTab, offset, SEEK_SET);
+	FAVITEM i;
+	fread(&i, sizeof i, 1, fileTab);
+	fseek(fileList, i.byteOffset, SEEK_SET);
 
 	FAVLISTITEM current;
 	char *dataFileName = getDataFileName(filename);
