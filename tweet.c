@@ -49,6 +49,14 @@ typedef struct langIndexListItem{
 
 }LANGLISTITEM;
 
+static char *getDataFileName(char *filename){
+	char *file;
+	file = malloc(strlen(filename)+4);
+	strcpy(file, filename);
+	strcat(file, ".dat");
+	return file;
+}
+
 int compareLanguageItem(const void* o1, const void* o2){
 	LANGITEM *i1 = (LANGITEM*) o1;
 	LANGITEM *i2 = (LANGITEM*) o2;
@@ -105,9 +113,8 @@ static long bestFit(char* filename, long tweetSize, long *minPreviusOffset){
 	}
 
 BESTFIT_ERROR:
-	if(arq != NULL)
-		fclose(arq);
-	return offset;	
+	if(arq != NULL) fclose(arq);
+	return offset;
 }
 
 static long tweetSize(TWEET* tweet){
@@ -139,20 +146,18 @@ static void flushTweet(char* filename, long byteOffset, long fieldsize, TWEET *t
 	if(fwrite(tweet->language, sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
 
 FLUSHTWEET_EXIT:
-	if(arq != NULL)
-		fclose(arq);
+	if(arq != NULL) fclose(arq);
 }
 
 void writeTweet(char *filename, TWEET *tweet){
-	if(filename == NULL || tweet  == NULL) return;
+	if(filename == NULL || tweet == NULL) return;
 
 	long tweetsize = tweetSize(tweet);
 	long previusOffset, previusOffsetValue;
 	long byteOffset  = bestFit(filename, tweetsize, &previusOffset);
 	
-	if(filename == NULL || tweet == NULL) return;
-
-	FILE *arq = fopen(filename, "w+");
+	char * datafilename = getDataFileName(filename);
+	FILE *arq = fopen(datafilename, "w+");
 	if(arq == NULL) return;
 
 	int fieldSize;
@@ -161,25 +166,25 @@ void writeTweet(char *filename, TWEET *tweet){
 	
 	long newFieldSize = fieldSize - (tweetsize + sizeof(int));
 	if(byteOffset == 0){
-		flushTweet(filename, byteOffset, tweetsize, tweet);
+		flushTweet(datafilename, byteOffset, tweetsize, tweet);
 	}
 	else if(newFieldSize < minTweetSize){
 		if(fseek(arq, byteOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT;
 		if(fread(&previusOffsetValue, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;
 		if(fseek(arq, previusOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT;
 		if(fwrite(&previusOffsetValue, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;
-		flushTweet(filename, byteOffset, fieldSize, tweet);
+		flushTweet(datafilename, byteOffset, fieldSize, tweet);
 	}else{
 		newFieldSize *= -1;			
 		if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;
 		if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;
 		byteOffset += sizeof(int) + newFieldSize;
-		flushTweet(filename, byteOffset, tweetsize, tweet);
+		flushTweet(datafilename, byteOffset, tweetsize, tweet);
 	}
 
 WRITETWEET_EXIT:
-	if(arq != NULL)
-		fclose(arq);
+	if(arq != NULL) fclose(arq);
+	if(datafilename != NULL) free(datafilename);
 }
 
 TWEET *newTweet(				\
@@ -220,7 +225,7 @@ TWEET *newTweet(				\
 	return tw;
 }
 
-char *readField(FILE *stream) {
+static char *readField(FILE *stream) {
 	char *buffer = NULL;
 	char character;
 	int counter = 0;
@@ -244,8 +249,9 @@ TWEET *readTweet(char *filename, long offset){
 	TWEET *tw;
 
 	tw = malloc(sizeof(TWEET));
-
-	dataFile = fopen(filename, "r");
+	
+	char * datafilename = getDataFileName(filename);
+	dataFile = fopen(datafilename, "r");
 
 	fseek(dataFile, offset, SEEK_SET);
 	fread(&size, sizeof(int), 1, dataFile);
@@ -265,16 +271,9 @@ TWEET *readTweet(char *filename, long offset){
 	fread(&(tw->favoriteCount), sizeof(int), 1, mem); 
 	fread(&(tw->retweetCount), sizeof(int), 1, mem); 
 	fread(&(tw->viewsCount), sizeof(long), 1, mem);
-
+	
+	if(datafilename != NULL) free(datafilename);
 	return tw; 
-}
-
-static char *getDataFileName(char *filename){
-	char *file;
-	file = malloc(strlen(filename)+4);
-	strcpy(file, filename);
-	strcat(file, ".dat");
-	return file;
 }
 
 static char *getLanguageTableIndexFileName(char *filename){
@@ -307,11 +306,13 @@ static char *getFavoriteListIndexFileName(char *filename){
 
 long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	*foundOccurences = 0;
-	FILE *f = fopen(filename, "r");
-	if (f == NULL) { printf("Erro na leitura do arquivo.\n"); return NULL; }
+	long *listOffset = NULL;
+	
+	char * datafilename = getDataFileName(filename);
+	FILE *f = fopen(datafilename, "r");
+	if (f == NULL) goto OFFSERBYUSER_EXIT;
 	
 	TWEET *tt = NULL;
-	long *listOffset;
 	long offset = HEADER;		// Offset of the last begin of tweet
 	long nextTweet;				// Offset from the last begin of tweet until the next begin of tweet
 	
@@ -329,8 +330,10 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 		
 		offset += abs(nextTweet) + sizeof(long);
 	}
-	
-	fclose(f);
+
+OFFSERBYUSER_EXIT:
+	if (f != NULL) fclose(f);
+	if(datafilename != NULL) free(datafilename);
 	return listOffset;
 }
 
@@ -512,7 +515,7 @@ void printTweet(TWEET *tweet){
 	return;
 }
 
-static void destoryTweet (TWEET **tweet){
+void destoryTweet (TWEET **tweet){
 	if(tweet == NULL || *tweet == NULL)
 		return;
 
