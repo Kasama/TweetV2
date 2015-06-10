@@ -37,7 +37,7 @@ int main() {
 	destoryTweet(&tt);
 	
 	for (i = 0; i < 50; i++){
-		printf("-- FOR %d\n", i);
+		printf("-- FOR %2d |", i);
 		sprintf(str0, "%d", rand());
 		sprintf(str1, "%d", (i%7)*10);
 		sprintf(str2, "%d", rand());
@@ -52,7 +52,7 @@ int main() {
 		printf("Escreveu | ");
 		
 		destoryTweet(&tt);
-		printf("Destruiu");
+		printf("Destruiu\n");
 	}
 	
 	free(str0);
