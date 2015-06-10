@@ -8,9 +8,9 @@
 int main() {
 	int foundOccurences, i;
 	char * str0 = calloc(sizeof(char), 14);
-	char * str1 = calloc(sizeof(char), 14);
+	char * str1 = calloc(sizeof(char), 3);
 	char * str2 = calloc(sizeof(char), 14);
-	char * str3 = calloc(sizeof(char), 14);
+	char * str3 = calloc(sizeof(char), 2);
 	
 	
 	TWEET * tt = newTweet("texto",
@@ -21,19 +21,20 @@ int main() {
 		15,
 		200);
 	if (tt != NULL) { printf("\nTweet criado\n\n"); }
-	/*
+	
 	printTweet(tt);
 	
 	writeTweet(FNAME, tt);
 	printf("\nTweet escrito *\n\n");
 	
-	free(tt);
+	destoryTweet(&tt);
 	printf("\nTweet liberado *\n\n");
 	
 	tt = readTweet(FNAME, sizeof(long));
 	if (tt != NULL) { printf("\nTweet lido\n\n"); }
 	
 	printTweet(tt);
+	destoryTweet(&tt);
 	
 	for (i = 0; i < 50; i++){
 		
@@ -42,15 +43,16 @@ int main() {
 		sprintf(str2, "%d", rand());
 		sprintf(str3, "%d", (i%3));
 		
-		tt = newTweet(
-		str0,
-		str1,
-		str2,
-		str3,
-		rand()%30,
-		rand()%30,
-		rand()%200);
+		tt = newTweet(str0, str1, str2, str3, rand()%30, rand()%30, rand()%200);
+		
+		writeTweet(FNAME, tt);
+		destoryTweet(&tt);
 	}
-	*/
+	
+	free(str0);
+	free(str1);
+	free(str2);
+	free(str3);
+	
 	return 0;
 }
