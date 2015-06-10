@@ -384,7 +384,7 @@ generateIdxData:
 
 }
 
-long *findOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences){
+long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences){
 	*foundOccurences = 0;
 	long *ret = NULL;
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
@@ -399,7 +399,7 @@ long *findOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOc
 		goto findFavRetList;
 
 	int nTweets;
-	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0)
+	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0) // Indice desatualizado
 		goto findFavRetTab;
 	if (nTweets != UPDATED)
 		goto findFavRetTab;
@@ -438,8 +438,7 @@ findFavRet:
 	return ret;
 }
 
-// NEED TO BE FINISHED!!
-long *findOffsetByLanguage(char *filename, char* language, long *foundOccurences){
+long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccurences){
 	*foundOccurences = 0;
 	long *ret = NULL;
 	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
