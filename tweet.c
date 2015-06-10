@@ -75,6 +75,14 @@ char *readField(FILE *stream) {
 	return buffer;
 }
 
+static char *getDataFileName(char *filename){
+	char *file;
+	file = malloc(strlen(filename)+4);
+	strcpy(file, filename);
+	strcat(file, ".dat");
+	return file;
+}
+
 TWEET *readTweet(char *filename, long offset){
 	int i, size;
 	FILE *dataFile;
@@ -84,10 +92,28 @@ TWEET *readTweet(char *filename, long offset){
 
 	tw = malloc(sizeof(TWEET));
 
+	filename = getDataFileName(filename);
+
 	dataFile = fopen(filename, "r");
 
-	fseek(dataFile, offset, SEEK_SET);
+	if (dataFile == NULL)
+	{
+		return NULL;
+	}
+
+	i = fseek(dataFile, offset, SEEK_SET);
+
+	if (!i)
+	{
+		return NULL;
+	}
+
 	fread(&size, sizeof(int), 1, dataFile);
+
+	if (size < 0)
+	{
+		return NULL;
+	}
 
 	void *dataRaw;
 	dataRaw = malloc(size);
