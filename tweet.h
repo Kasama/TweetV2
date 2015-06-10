@@ -84,13 +84,13 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences);
  * binary seach by favorite count in the index file
  */
 // Justus
-long *findOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences);
+long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences);
 
 /*
  * binary seach by language in the index file
  */
 // Justus
-long *findOffsetByLanguage(char *filename, char* language, long *foundOccurences);
+long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccurences);
 
 /*
  * logically remove the tweet in the data file by its offset

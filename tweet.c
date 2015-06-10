@@ -770,7 +770,7 @@ void printTweet(TWEET *tweet){
 	printf("Favorited %d time%s",tweet->favoriteCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
 	printf("Retweeted %d time%s",tweet->retweetCount, (tweet->retweetCount <= 1)?"\n":"s\n");
 	printf("Viewed %ld time%s",tweet->viewsCount, (tweet->viewsCount <= 1)?"\n":"s\n");
-	printf("_________________________________________________");
+	printf("_________________________________________________\n");
 
 	return;
 }
@@ -785,5 +785,5 @@ void destoryTweet (TWEET **tweet){
 	free((*tweet)->language);
 	
 	free(*tweet);
-	tweet == NULL;
+	tweet = NULL;
 }
