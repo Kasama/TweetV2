@@ -14,6 +14,18 @@ int main() {
 	return 0;
 }
 
+void printVector(long * vect, int n){
+	if (vect == NULL || &n == NULL || n <= 0){
+		printf("\tVetor Vazio\n");
+		return;
+	}
+	
+	int i;
+	for (i = 0; i < n; i++){
+		printf("\t> %ld\n", vect[i]);
+	}
+}
+
 int teste1 (){
 	int foundOccurences, i;
 	char * str0 = calloc(sizeof(char), 14);
@@ -34,13 +46,13 @@ int teste1 (){
 	printTweet(tt);
 	
 	writeTweet(FNAME, tt);
-	printf("\nTweet escrito *\n\n");
+	printf("\n\nTweet escrito *\n");
 	
 	destoryTweet(&tt);
-	printf("\nTweet liberado *\n\n");
+	printf("\nTweet liberado *\n");
 	
 	tt = readTweet(FNAME, sizeof(long));
-	if (tt != NULL) { printf("\nTweet lido\n\n"); }
+	if (tt != NULL) { printf("\nTweet lido\n"); }
 	
 	printTweet(tt);
 	destoryTweet(&tt);
@@ -73,6 +85,65 @@ int teste1 (){
 }
 
 int teste2 (){
+	long *offset, foundOccurences;
 	
+	// = = = = = Busca por Usuario = = = = =
+	printf("\nProcurando : findOffsetByUser : \"usuario\"\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByUser(FNAME, "usuario", &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
+	
+	printf("\nProcurando : findOffsetByUser : \"usuario\\31\"\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByUser(FNAME, "usuario\31", &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
+	
+	printf("\nProcurando : findOffsetByUser : \"u4s8u15a16r23i42o\\31\" (DEVE falhar SEM segfault)\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByUser(FNAME, "u4s8u15a16r23i42o\31", &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
+	
+	// = = = = = Busca por Favoritos = = = = =
+	printf("\nProcurando : findOffsetByFavoriteCount : 10\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByFavoriteCount(FNAME, 10, &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
+	
+	printf("\nProcurando : findOffsetByFavoriteCount : 300 (Falha)\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByFavoriteCount(FNAME, 300, &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
+	
+	// = = = = = Busca por Language = = = = =
+	printf("\nProcurando : findOffsetByLanguage : \"PT-BR\"\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByLanguage(FNAME, "PT-BR", &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
+	
+	printf("\nProcurando : findOffsetByLanguage : \"PT-BR\\31\"\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByLanguage(FNAME, "PT-BR\31", &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
+	
+	printf("\nProcurando : findOffsetByLanguage : \"EN-BR\\31\" (Falha)\n");
+	foundOccurences = 0;
+	offset = NULL;
+	offset = findOffsetByLanguage(FNAME, "EN-BR\31", &foundOccurences);
+	printVector(offset, foundOccurences);
+	free(offset);
 	return 0;
 }
