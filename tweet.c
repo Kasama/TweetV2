@@ -622,7 +622,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 
 		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile);
 		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM))] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
-		realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
+		aux = realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
 		qsort(aux, (sizeOfTableFile/sizeof(FAVITEM)), sizeof(FAVITEM), compareFavoriteItem);
 		if(fwrite(aux, sizeOfTableFile, 1, favoriteTable)) goto RTFFI_EXIT;
 
@@ -680,7 +680,7 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 
 		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile);
 		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM))] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
-		realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
+		aux = realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
 		qsort(aux, (sizeOfTableFile/sizeof(FAVITEM)), sizeof(FAVITEM), compareLanguageItem);
 		if(fwrite(aux, sizeOfTableFile, 1, languageTable)) goto RTFLI_EXIT;
 
@@ -767,9 +767,9 @@ void printTweet(TWEET *tweet){
 	printf("User: %s\n" , 	 		tweet->userName);
 	printf("Coordinate: %s\n", 		tweet->coords);
 	printf("Language: %s\n",		tweet->language);
-	printf("Favorited %d time%s",tweet->viewsCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
+	printf("Favorited %d time%s",tweet->favoriteCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
 	printf("Retweeted %d time%s",tweet->retweetCount, (tweet->retweetCount <= 1)?"\n":"s\n");
-	printf("Viewed %d time%s",tweet->viewsCount, (tweet->viewsCount <= 1)?"\n":"s\n");
+	printf("Viewed %ld time%s",tweet->viewsCount, (tweet->viewsCount <= 1)?"\n":"s\n");
 	printf("_________________________________________________");
 
 	return;
