@@ -5,7 +5,16 @@
 
 #define FNAME "tweettest"
 
+int teste1();
+int teste2();
+
 int main() {
+	teste1();
+	teste2();
+	return 0
+}
+
+int teste1 (){
 	int foundOccurences, i;
 	char * str0 = calloc(sizeof(char), 14);
 	char * str1 = calloc(sizeof(char), 3);
@@ -59,6 +68,11 @@ int main() {
 	free(str1);
 	free(str2);
 	free(str3);
+	
+	return 0;
+}
+
+int teste2 (){
 	
 	return 0;
 }
