@@ -72,7 +72,7 @@ int removeTweet(char *filename, long offset){
 
 	//getting the stack's head
 	long stackHead;
-	if(fread(&stackHead, sizeof(long), 1, file) == 0)
+	if(fread(&stackHead, HEADER, 1, file) == 0)
 		goto fileFunctionError;
 	
 	//tries to move til the deletion's offset
@@ -94,7 +94,7 @@ int removeTweet(char *filename, long offset){
 	if(fwrite(&stackHead, sizeof(long), 1, file) == 0)
 		goto fileFunctionError;
 
-	//tries to update the stack's head in the file's beggining
+	//tries to update the stack's head in the file's beginning
 	if(fseek(file, SEEK_SET, SEEK_SET) != 0)
 		goto fileFunctionError;
 	if(fwrite(&offset, sizeof(long), 1, file) == 0)
