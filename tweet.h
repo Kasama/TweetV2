@@ -102,4 +102,6 @@ int removeTweet(char *filename, long offset);
 // Crocomo
 void printTweet(TWEET *tweet);
 
+void destoryTweet (TWEET **tweet);
+
 #endif
