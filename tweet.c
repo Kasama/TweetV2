@@ -602,7 +602,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	if(favoriteTable == NULL || favoriteList == NULL || removedTweet == NULL) return 0;
 
 	int tableStatus = !UPDATED;
-	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFLI_EXIT;
+	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 
 	long tableOffset = findIndexOffsetByFavoriteCount(filename, removedTweet->favoriteCount);
 
@@ -611,24 +611,24 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	if(fread(tableItem, sizeof(FAVITEM), 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 
 	FAVLISTITEM *current, *previous;
-	if(fseek(favoriteList, tableItem.byteOffset, SEEK_SET != 0) goto RTFFI_EXIT;
+	if(fseek(favoriteList, tableItem->byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(current, sizeof(FAVLISTITEM), 1, favoriteTable) <= 0)
 			goto RTFFI_EXIT;
 
-	if(current.next == -1) {
+	if(current->next == -1) {
 		if(fseek(favoriteTable, SEEK_END, SEEK_SET) != 0) goto RTFFI_EXIT;
 		long sizeOfTableFile = ftell(favoriteTable);
 		sizeOfTableFile-= INDEXHEADER;
 
 		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile);
-		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM)] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
+		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM))] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
 		realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
 		qsort(aux, (sizeOfTableFile/sizeof(FAVITEM)), sizeof(FAVITEM), compareFavoriteItem);
-		if(fwrite(aux, sizeOfTableFile), 1, favoriteTable)) goto RTFFI_EXIT;
+		if(fwrite(aux, sizeOfTableFile, 1, favoriteTable)) goto RTFFI_EXIT;
 
-		rewind(languageTable);
+		rewind(favoriteTable);
 		tableStatus = UPDATED;
-		if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFLI_EXIT;
+		if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 		return 1;
 	}
 
@@ -636,14 +636,14 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 		previous = current;
 		if(fread(current, sizeof(FAVLISTITEM), 1, favoriteTable) <= 0)
 			goto RTFFI_EXIT;
-		if(fseek(favoriteList, current.fileOffset, SEEK_SET != 0) goto RTFFI_EXIT;
-	} while(current.fileOffset != offset || current.next != -1);
+		if(fseek(favoriteList, current->fileOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
+	} while(current->fileOffset != offset || current->next != -1);
 
-	previous.next = current.next;
+	previous->next = current->next;
 
-	rewind(languageTable);
+	rewind(favoriteTable);
 	tableStatus = UPDATED;
-	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFLI_EXIT;
+	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 	return 1;
 
 RTFFI_EXIT:
@@ -662,27 +662,27 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	int tableStatus = !UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
 
-	long tableOffset = findOffsetByFavoriteCount(filename, removedTweet->language);
+	long tableOffset = findIndexOffsetByLanguage(filename, removedTweet->language);
 
 	FAVITEM *tableItem;
 	if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	if(fread(tableItem, sizeof(FAVITEM), 1, languageTable) <= 0) goto RTFLI_EXIT;
 
 	FAVLISTITEM *current, *previous;
-	if(fseek(languageList, tableItem.byteOffset, SEEK_SET != 0) goto RTFLI_EXIT;
+	if(fseek(languageList, tableItem->byteOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	if(fread(current, sizeof(FAVLISTITEM), 1, languageTable) <= 0)
 			goto RTFLI_EXIT;
 
-	if(current.next == -1) {
-		if(fseek(languageTable, SEEK_END, SEEK_SET) != 0) goto RTFFI_EXIT;
+	if(current->next == -1) {
+		if(fseek(languageTable, SEEK_END, SEEK_SET) != 0) goto RTFLI_EXIT;
 		long sizeOfTableFile = ftell(languageTable);
 		sizeOfTableFile-= INDEXHEADER;
 
 		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile);
-		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM)] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
+		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM))] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
 		realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
 		qsort(aux, (sizeOfTableFile/sizeof(FAVITEM)), sizeof(FAVITEM), compareLanguageItem);
-		if(fwrite(aux, sizeOfTableFile), 1, languageTable)) goto RTFFI_EXIT;
+		if(fwrite(aux, sizeOfTableFile, 1, languageTable)) goto RTFLI_EXIT;
 
 		rewind(languageTable);
 		tableStatus = UPDATED;
@@ -694,10 +694,10 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 		previous = current;
 		if(fread(current, sizeof(FAVLISTITEM), 1, languageTable) <= 0)
 			goto RTFLI_EXIT;
-		if(fseek(languageList, current.fileOffset, SEEK_SET != 0) goto RTFLI_EXIT;
-	} while(current.fileOffset != offset || current.next != -1);
+		if(fseek(languageList, current->fileOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
+	} while(current->fileOffset != offset || current->next != -1);
 
-	previous.next = current.next;
+	previous->next = current->next;
 	rewind(languageTable);
 	tableStatus = UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
@@ -769,7 +769,7 @@ void printTweet(TWEET *tweet){
 	printf("Language: %s\n",		tweet->language);
 	printf("Favorited %d time%s",tweet->viewsCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
 	printf("Retweeted %d time%s",tweet->retweetCount, (tweet->retweetCount <= 1)?"\n":"s\n");
-	printf("Viewed %d time%s",tweet->viewsCount, (tweet->viewCount <= 1)?"\n":"s\n");
+	printf("Viewed %d time%s",tweet->viewsCount, (tweet->viewsCount <= 1)?"\n":"s\n");
 	printf("_________________________________________________");
 
 	return;
