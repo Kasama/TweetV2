@@ -384,19 +384,13 @@ generateIdxData:
 
 }
 
-long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences){
-	*foundOccurences = 0;
-	long *ret = NULL;
+static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
+	long ret = -1;
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
-	char *favIdxListFileName = getFavoriteListIndexFileName(filename);
-	FILE *fileList = fopen(favIdxListFileName, "r");
-	free(favIdxListFileName);
-	if (fileList == NULL)
-		goto findFavRet;
 	FILE *fileTab = fopen(favIdxTabFileName, "r");
 	free(favIdxTabFileName);
 	if (fileTab == NULL)
-		goto findFavRetList;
+		goto findFavRet;
 
 	int nTweets;
 	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0) // Indice desatualizado
@@ -417,21 +411,74 @@ long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *fou
 	FAVITEM *found = bsearch(&key, items, nTweets, sizeof(FAVITEM), compareFavoriteItem);
 	if (found == NULL)
 		goto findFavRetTab;
-	fseek(fileList, found->byteOffset, SEEK_SET);
+	ret = found->byteOffset;
+
+findFavRetTab:
+	fclose(fileTab);
+findFavRet:
+	return ret;
+}
+
+static long findIndexOffsetByLanguage(char *filename, char* language){
+	long ret = NULL;
+	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
+	FILE *fileTab = fopen(langIdxTabFileName, "r");
+	free(langIdxTabFileName);
+	if (fileTab == NULL)
+		goto findLangRet;
+
+	int nTweets;
+	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0)
+		goto findLangRetTab;
+	if (nTweets != UPDATED)
+		goto findLangRetTab;
+	fseek(fileTab, 0, SEEK_END);
+	nTweets = (ftell(fileTab)-INDEXHEADER)/sizeof(LANGITEM);
+	LANGITEM *items = malloc(nTweets*sizeof(LANGITEM));
+	if (items == NULL)
+		goto findLangRetTab;
+	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) == 0)
+		goto findLangRetTab;
+
+	LANGITEM key;
+	int len = strlen(language);
+	strncpy(key.language, language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
+	key.language[MAX_LANGUAGE_SIZE-1] = 0;
+
+	LANGITEM *found = bsearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
+	if (found == NULL)
+		goto findLangRetTab;
+
+	ret = found->byteOffset;
+
+findLangRetTab:
+	fclose(fileTab);
+findLangRet:
+	return ret;
+}
+
+long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences){
+	*foundOccurences = 0;
+	long *ret = NULL;
+	char *listFileName = getFavoriteListIndexFileName(filename);
+	FILE *fileList = fopen(listFileName, "r");
+	free(listFileName);
+
+	long offset;
+	offset = findIndexOffsetByFavoriteCount(filename, favoriteCount);
+	fseek(fileList, offset, SEEK_SET);
 
 	FAVLISTITEM current;
 	do {
 		if (fread(&current, sizeof current, 1, fileList) == 0)
-			goto findFavRetTab;
+			goto findFavRetList;
 		*foundOccurences++;
 		ret = realloc(ret, (sizeof current)*(*foundOccurences));
 		if (ret == NULL)
-			goto findFavRetTab;
+			goto findFavRetList;
 		ret[(*foundOccurences)-1] = current.fileOffset;
 	}while(current.next != -1);
 
-findFavRetTab:
-	fclose(fileTab);
 findFavRetList:
 	fclose(fileList);
 findFavRet:
