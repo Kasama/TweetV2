@@ -345,19 +345,19 @@ void generateIndexes(char *filename){
 	free(dataFileName);
 	if (dataFile == NULL) return;
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
-	FILE *favIdxTabFile = fopen(dataFileName, "w");
+	FILE *favIdxTabFile = fopen(dataFileName, "w+");
 	free(favIdxTabFileName);
 	if (favIdxTabFile == NULL) goto generateIdxData;
 	char *favIdxListFileName = getFavoriteListIndexFileName(filename);
-	FILE *favIdxListFile = fopen(dataFileName, "w");
+	FILE *favIdxListFile = fopen(dataFileName, "w+");
 	free(favIdxListFileName);
 	if (favIdxListFile == NULL) goto generateIdxFTAB;
 	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
-	FILE *langIdxTabFile = fopen(dataFileName, "w");
+	FILE *langIdxTabFile = fopen(dataFileName, "w+");
 	free(langIdxTabFileName);
 	if (favIdxTabFile == NULL) goto generateIdxFLIST;
 	char *langIdxListFileName = getLanguageListIndexFileName(filename);
-	FILE *langIdxListFile = fopen(dataFileName, "w");
+	FILE *langIdxListFile = fopen(dataFileName, "w+");
 	free(langIdxListFileName);
 	if (langIdxListFile == NULL) goto generateIdxLTAB;
 
@@ -367,8 +367,11 @@ void generateIndexes(char *filename){
 	fread(&offset, sizeof offset, 1, dataFile);
 	if (offset > 0)
 		current = readTweet(filename, offset);
+	FAVITEM *favTab = NULL;
+	FAVLISTITEM *favList = NULL;
+	LANGITEM *langTab = NULL;
+	LANGLISTITEM *langList = NULL;
 	//TODO everything
-
 
 
 generateIdxLLIST:
@@ -393,7 +396,7 @@ static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 		goto findFavRet;
 
 	int nTweets;
-	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0) // Indice desatualizado
+	if (fread(&nTweets, sizeof nTweets, 1, fileTab) <= 0) // Indice desatualizado
 		goto findFavRetTab;
 	if (nTweets != UPDATED)
 		goto findFavRetTab;
@@ -402,7 +405,7 @@ static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 	FAVITEM *items = malloc(nTweets*sizeof(FAVITEM));
 	if (items == NULL)
 		goto findFavRetTab;
-	if (fread(items, sizeof(FAVITEM), nTweets, fileTab) == 0)
+	if (fread(items, sizeof(FAVITEM), nTweets, fileTab) <= 0)
 		goto findFavRetTab;
 
 	FAVITEM key;
@@ -428,7 +431,7 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 		goto findLangRet;
 
 	int nTweets;
-	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0)
+	if (fread(&nTweets, sizeof nTweets, 1, fileTab) <= 0)
 		goto findLangRetTab;
 	if (nTweets != UPDATED)
 		goto findLangRetTab;
@@ -437,7 +440,7 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 	LANGITEM *items = malloc(nTweets*sizeof(LANGITEM));
 	if (items == NULL)
 		goto findLangRetTab;
-	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) == 0)
+	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) <= 0)
 		goto findLangRetTab;
 
 	LANGITEM key;
