@@ -11,7 +11,7 @@ int teste2();
 int main() {
 	teste1();
 	teste2();
-	return 0
+	return 0;
 }
 
 int teste1 (){
