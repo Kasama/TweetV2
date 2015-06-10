@@ -76,7 +76,7 @@ int removeTweet(char *filename, long offset){
 		goto fileFunctionError;
 	
 	//tries to move til the deletion's offset
-	if(fseek(file, offset, SEEK_SET) == -1)
+	if(fseek(file, offset, SEEK_SET) != 0)
 		goto fileFunctionError;
 	int fieldSize;
 
@@ -95,13 +95,13 @@ int removeTweet(char *filename, long offset){
 		goto fileFunctionError;
 
 	//tries to update the stack's head in the file's beggining
-	if(fseek(file, SEEK_SET, SEEK_SET) == -1)
+	if(fseek(file, SEEK_SET, SEEK_SET) != 0)
 		goto fileFunctionError;
 	if(fwrite(&offset, sizeof(long), 1, file) == 0)
 		goto fileFunctionError;
 
 	//tries to back to the register and mark it as removed (negative)
-	if(fseek(file, offset, SEEK_SET) == -1)
+	if(fseek(file, offset, SEEK_SET) != 0)
 		goto fileFunctionError;
 	fieldSize *= -1;
 	if(fwrite(&fieldSize, sizeof(int), 1, file) == 0)
