@@ -37,16 +37,22 @@ int main() {
 	destoryTweet(&tt);
 	
 	for (i = 0; i < 50; i++){
-		
+		printf("-- FOR %d\n", i);
 		sprintf(str0, "%d", rand());
 		sprintf(str1, "%d", (i%7)*10);
 		sprintf(str2, "%d", rand());
 		sprintf(str3, "%d", (i%3));
 		
+		printf("\tAleatório | ");
+		
 		tt = newTweet(str0, str1, str2, str3, rand()%30, rand()%30, rand()%200);
+		printf("Novo Tweet | ");
 		
 		writeTweet(FNAME, tt);
+		printf("Escreveu | ");
+		
 		destoryTweet(&tt);
+		printf("Destruiu");
 	}
 	
 	free(str0);
