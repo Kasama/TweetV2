@@ -295,7 +295,6 @@ static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet,
 	fclose(indexTable);
 	fclose(indexList);
 	free(favVector);
-	
 }
 
 static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
@@ -308,13 +307,41 @@ static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
 	table = getFavoriteTableIndexFileName(filename);
 	list = getFavoriteListIndexFileName(filename);
 
+	updateFavoriteCountIndexFiles(table, list, tweet, byteOffset);
 
-
+	free(list);
+	free(table);
 }
 
-void writeTweet(char *filename, TWEET *tweet){
-	if(filename == NULL || tweet == NULL) return;
+void writeTweet(char *filename, TWEET *tw){
+	if(filename == NULL || tw == NULL) return;
 
+	TWEET *tweet;
+	tweet = malloc(sizeof(TWEET));
+
+	tweet->text = malloc((strlen(tw->text)) + 2);
+	tweet->userName = malloc((strlen(tw->userName)) + 2);
+	tweet->coords = malloc((strlen(tw->coords)) + 2);
+	tweet->language = malloc((strlen(tw->language)) + 2);
+
+	strcpy(tweet->text, tw->text);
+	strcpy(tweet->userName, tw->userName);
+	strcpy(tweet->coords, tw->coords);
+	strcpy(tweet->language, tw->language);
+
+	tweet->text[strlen(tw->text)] = END_FIELD;
+	tweet->text[strlen(tw->text)+1] = '\0';
+	tweet->userName[strlen(tw->userName)] = END_FIELD;
+	tweet->userName[strlen(tw->userName)+1] = '\0';
+	tweet->coords[strlen(tw->coords)] = END_FIELD;
+	tweet->coords[strlen(tw->coords)+1] = '\0';
+	tweet->language[strlen(tw->language)] = END_FIELD;
+	tweet->language[strlen(tw->language)+1] = '\0';
+	
+	tweet->favoriteCount = tw->favoriteCount;
+	tweet->retweetCount = tw->retweetCount;
+	tweet->viewsCount = tw->viewsCount;
+	
 	long tweetsize = tweetSize(tweet);  //tamanho do tweet a ser inserido
 	long previusOffset, previusOffsetValue, byteOffset;
 	
@@ -358,6 +385,7 @@ void writeTweet(char *filename, TWEET *tweet){
 WRITETWEET_EXIT:
 	if(arq != NULL) fclose(arq);
 	if(datafilename != NULL) free(datafilename);
+	if(tweet != NULL) free(tweet);
 
 }
 
