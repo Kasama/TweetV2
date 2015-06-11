@@ -635,7 +635,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 		rewind(favoriteTable);
 		tableStatus = UPDATED;
 		if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-		free(aux)
+		free(aux);
 		return 1;
 	}
 	//finding the item in the list file and removing it
@@ -754,7 +754,7 @@ int removeTweet(char *filename, long offset) {
 	fieldSize *= -1;
 	if(fwrite(&fieldSize, sizeof(int), 1, file) <= 0) goto REMOVE_TWEET_EXIT;
 
-	//removing indexes from the indexes files
+	//removing indexes from the indexes fieldSize
 	if(!removeTweetFromLanguageIndex(filename, removedTweet, offset) ||
 	   !removeTweetFromFavoriteIndex(filename, removedTweet, offset))
 		goto REMOVE_TWEET_EXIT;
