@@ -401,24 +401,15 @@ TWEET *newTweet(				\
 	TWEET *tw;
 	tw = malloc(sizeof(TWEET));
 
-	tw->text = malloc((strlen(text)) + 2);
-	tw->userName = malloc((strlen(userName)) + 2);
-	tw->coords = malloc((strlen(coords)) + 2);
-	tw->language = malloc((strlen(language)) + 2);
+	tw->text = malloc((strlen(text)));
+	tw->userName = malloc((strlen(userName)));
+	tw->coords = malloc((strlen(coords)));
+	tw->language = malloc((strlen(language)));
 
 	strcpy(tw->text, text);
 	strcpy(tw->userName, userName);
 	strcpy(tw->coords, coords);
 	strcpy(tw->language, language);
-
-	tw->text[strlen(text)] = END_FIELD;
-	tw->text[strlen(text)+1] = '\0';
-	tw->userName[strlen(userName)] = END_FIELD;
-	tw->userName[strlen(userName)+1] = '\0';
-	tw->coords[strlen(coords)] = END_FIELD;
-	tw->coords[strlen(coords)+1] = '\0';
-	tw->language[strlen(language)] = END_FIELD;
-	tw->language[strlen(language)+1] = '\0';
 	
 	tw->favoriteCount = favoriteCount;
 	tw->retweetCount = retweetCount;
@@ -444,6 +435,14 @@ static char *readField(FILE *stream) {
 	return buffer;
 }
 
+static char *getDataFileName(char *filename){
+	char *file;
+	file = malloc(strlen(filename)+4);
+	strcpy(file, filename);
+	strcat(file, ".dat");
+	return file;
+}
+
 TWEET *readTweet(char *filename, long offset){
 	int i, size;
 	FILE *dataFile;
@@ -456,8 +455,24 @@ TWEET *readTweet(char *filename, long offset){
 	char * datafilename = getDataFileName(filename);
 	dataFile = fopen(datafilename, "r");
 
-	fseek(dataFile, offset, SEEK_SET);
+	if (dataFile == NULL)
+	{
+		return NULL;
+	}
+
+	i = fseek(dataFile, offset, SEEK_SET);
+
+	if (!i)
+	{
+		return NULL;
+	}
+
 	fread(&size, sizeof(int), 1, dataFile);
+
+	if (size < 0)
+	{
+		return NULL;
+	}
 
 	void *dataRaw;
 	dataRaw = malloc(size);
