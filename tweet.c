@@ -240,7 +240,7 @@ static void updateLanguageIndexFiles(char* table, char* list, TWEET *tweet, long
 }
 
 static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet, long byteOffset){
-/*
+
 	FILE *indexTable = fopen(table, "r+");
 	FILE *indexList;
 	int updatedStatus = !UPDATED;
@@ -253,19 +253,19 @@ static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet,
 	int size = (fileSize - sizeof(int))/sizeof(LANGITEM); 
 	
 	int len = strlen(tweet->language);
-	strncpy(newEntryOnTab.language, tweet->language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
+	newEntryOnTab.favoriteCount = tweet->favoriteCount;
 	newEntryOnTab.byteOffset = byteOffset;
-	newEntryOnTab.language[MAX_LANGUAGE_SIZE - 1] = 0;	
+	newEntryOnTab.favoriteCount = 0;	
 
-	fread(langVector, sizeof(LANGITEM), size, indexTable);
+	fread(favVector, sizeof(LANGITEM), size, indexTable);
 
-	int index = binarySearch(&newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
+	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(LANGITEM), compareLanguageItem);	
 	int found = index;
 
 	if(found == -1){
-		langVector = realloc(langVector, (fileSize - sizeof(int) + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
-		langVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
-		strcpy(langVector[size - 1].language, newEntryOnTab.language);
+		favVector = realloc(favVector, (fileSize - sizeof(int) + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
+		favVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
+		favVector[size - 1].favoriteCount = newEntryOnTab.favoriteCount;
 		index = size - 1;
 	}
 
@@ -275,27 +275,27 @@ static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet,
 
 	newEntryOnTab.byteOffset = ftell(indexList);//salvo o byteoffset na variavel que vai para a tab
 	newEntryOnList.fileOffset = byteOffset;
-	newEntryOnList.next = langVector[index].byteOffset;
+	newEntryOnList.next = favVector[index].byteOffset;
 	
 	fwrite(&newEntryOnList, sizeof newEntryOnList, 1, indexList);
-	langVector[index].byteOffset = newEntryOnTab.byteOffset;
+	favVector[index].byteOffset = newEntryOnTab.byteOffset;
 
 	if(found == -1)
-		qsort(langVector,size, sizeof(LANGITEM), compareLanguageItem);//ordeno o vetor
+		qsort(favVector,size, sizeof(LANGITEM), compareLanguageItem);//ordeno o vetor
 	
 	updatedStatus = UPDATED;	
 	fclose(indexTable);
 	indexTable = fopen(table, "w+");
 	fwrite(&updatedStatus, sizeof(int), 1, indexTable);	
-	fwrite(langVector, sizeof(LANGITEM), size, indexTable);
+	fwrite(favVector, sizeof(LANGITEM), size, indexTable);
 
 	fseek(indexList, 0, SEEK_SET);
 	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
 
 	fclose(indexTable);
 	fclose(indexList);
-	free(langVector);
-	*/
+	free(favVector);
+	
 }
 
 static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
