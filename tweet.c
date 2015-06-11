@@ -398,12 +398,12 @@ static char *getLanguageTableIndexFileName(char *filename){
 	return file;
 }
 
-static char *getFavoriteTableIndexFileName(char *filename){
+static char *getFavoriteTableIndexFileName(char *filename){/*{*/
 	char *file;
 	file = getDataFileName(filename);
 	strcpy(&(file[strlen(file)-4]), ".itf");
 	return file;
-}
+}/*}*/
 
 static char *getLanguageListIndexFileName(char *filename){
 	char *file;
@@ -462,42 +462,32 @@ void generateIndexes(char *filename){
 	if (dataFile == NULL) return;
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
 	FILE *favIdxTabFile = fopen(dataFileName, "w+");
+	fclose(favIdxTabFile);
 	free(favIdxTabFileName);
-	if (favIdxTabFile == NULL) goto generateIdxData;
 	char *favIdxListFileName = getFavoriteListIndexFileName(filename);
 	FILE *favIdxListFile = fopen(dataFileName, "w+");
+	fclose(favIdxListFile);
 	free(favIdxListFileName);
-	if (favIdxListFile == NULL) goto generateIdxFTAB;
 	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
 	FILE *langIdxTabFile = fopen(dataFileName, "w+");
+	fclose(langIdxTabFile);
 	free(langIdxTabFileName);
-	if (favIdxTabFile == NULL) goto generateIdxFLIST;
 	char *langIdxListFileName = getLanguageListIndexFileName(filename);
 	FILE *langIdxListFile = fopen(dataFileName, "w+");
+	fclose(langIdxListFile);
 	free(langIdxListFileName);
-	if (langIdxListFile == NULL) goto generateIdxLTAB;
 
 	long offset;
 	TWEET *current;
 	fseek(dataFile, HEADER, SEEK_SET);
-	fread(&offset, sizeof offset, 1, dataFile);
-	if (offset > 0)
-		current = readTweet(filename, offset);
-	FAVITEM *favTab = NULL;
-	FAVLISTITEM *favList = NULL;
-	LANGITEM *langTab = NULL;
-	LANGLISTITEM *langList = NULL;
-	//TODO everything
+	while(fread(&offset, sizeof offset, 1, dataFile) > 0){
+		fseek(dataFile, abs(offset), SEEK_CUR);
+		if (offset > 0){
+			current = readTweet(filename, offset);
+			updateIndexFiles(current, offset, filename);
+		}
+	}
 
-
-generateIdxLLIST:
-	fclose(langIdxListFile);
-generateIdxLTAB:
-	fclose(langIdxTabFile);
-generateIdxFLIST:
-	fclose(favIdxListFile);
-generateIdxFTAB:
-	fclose(favIdxTabFile);
 generateIdxData:
 	fclose(dataFile);
 
@@ -702,7 +692,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	FAVLISTITEM *current, *previous;
 	if(fseek(favoriteList, tableItem->byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(current, sizeof(FAVLISTITEM), 1, favoriteTable) <= 0)
-			goto RTFFI_EXIT;
+		goto RTFFI_EXIT;
 	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
 	if(current->next == -1 && current->fileOffset == offset) {
 		if(fseek(favoriteTable, SEEK_END, SEEK_SET) != 0) goto RTFFI_EXIT;
@@ -766,7 +756,7 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	FAVLISTITEM *current, *previous;
 	if(fseek(languageList, tableItem->byteOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	if(fread(current, sizeof(FAVLISTITEM), 1, languageTable) <= 0)
-			goto RTFLI_EXIT;
+		goto RTFLI_EXIT;
 
 	if(current->next == -1 && current->fileOffset == offset) {
 		if(fseek(languageTable, SEEK_END, SEEK_SET) != 0) goto RTFLI_EXIT;
@@ -819,7 +809,7 @@ int removeTweet(char *filename, long offset) {
 	//getting the stack's head
 	long stackHead;
 	if(fread(&stackHead, HEADER, 1, file) <= 0) goto REMOVE_TWEET_EXIT;
-	
+
 	//tries to move til the deletion's offset
 	if(fseek(file, offset, SEEK_SET) != 0) goto REMOVE_TWEET_EXIT;
 	int fieldSize;
@@ -844,7 +834,7 @@ int removeTweet(char *filename, long offset) {
 
 	//removing indexes from the indexes fieldSize
 	if(!removeTweetFromLanguageIndex(filename, removedTweet, offset) ||
-	   !removeTweetFromFavoriteIndex(filename, removedTweet, offset))
+			!removeTweetFromFavoriteIndex(filename, removedTweet, offset))
 		goto REMOVE_TWEET_EXIT;
 
 	fclose(file);
@@ -878,7 +868,7 @@ void destoryTweet (TWEET **tweet){
 	free((*tweet)->userName);
 	free((*tweet)->coords);
 	free((*tweet)->language);
-	
+
 	free(*tweet);
 	tweet = NULL;
 }
