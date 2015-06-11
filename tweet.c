@@ -201,7 +201,7 @@ static void updateLanguageIndexFiles(char* table, char* list, TWEET *tweet, long
 
 	fread(langVector, sizeof(LANGITEM), size, indexTable);
 
-	int index = binarySearch(newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
+	int index = binarySearch(&newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
 	int found = index;
 
 	if(found == -1){
