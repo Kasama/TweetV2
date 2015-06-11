@@ -110,39 +110,39 @@ int teste2 (){
 	free(offset);
 	
 	// = = = = = Busca por Favoritos = = = = =
-	printf("\nProcurando : findOffsetByFavoriteCount : 10\n");
+	printf("\nProcurando : findDataOffsetByFavoriteCount : 10\n");
 	foundOccurences = 0;
 	offset = NULL;
-	offset = findOffsetByFavoriteCount(FNAME, 10, &foundOccurences);
+	offset = findDataOffsetByFavoriteCount(FNAME, 10, &foundOccurences);
 	printVector(offset, foundOccurences);
 	free(offset);
 	
-	printf("\nProcurando : findOffsetByFavoriteCount : 300 (Falha)\n");
+	printf("\nProcurando : findDataOffsetByFavoriteCount : 300 (Falha)\n");
 	foundOccurences = 0;
 	offset = NULL;
-	offset = findOffsetByFavoriteCount(FNAME, 300, &foundOccurences);
+	offset = findDataOffsetByFavoriteCount(FNAME, 300, &foundOccurences);
 	printVector(offset, foundOccurences);
 	free(offset);
 	
 	// = = = = = Busca por Language = = = = =
-	printf("\nProcurando : findOffsetByLanguage : \"PT-BR\"\n");
+	printf("\nProcurando : findDataOffsetByLanguage : \"PT-BR\"\n");
 	foundOccurences = 0;
 	offset = NULL;
-	offset = findOffsetByLanguage(FNAME, "PT-BR", &foundOccurences);
+	offset = findDataOffsetByLanguage(FNAME, "PT-BR", &foundOccurences);
 	printVector(offset, foundOccurences);
 	free(offset);
 	
-	printf("\nProcurando : findOffsetByLanguage : \"PT-BR\\31\"\n");
+	printf("\nProcurando : findDataOffsetByLanguage : \"PT-BR\\31\"\n");
 	foundOccurences = 0;
 	offset = NULL;
-	offset = findOffsetByLanguage(FNAME, "PT-BR\31", &foundOccurences);
+	offset = findDataOffsetByLanguage(FNAME, "PT-BR\31", &foundOccurences);
 	printVector(offset, foundOccurences);
 	free(offset);
 	
-	printf("\nProcurando : findOffsetByLanguage : \"EN-BR\\31\" (Falha)\n");
+	printf("\nProcurando : findDataOffsetByLanguage : \"EN-BR\\31\" (Falha)\n");
 	foundOccurences = 0;
 	offset = NULL;
-	offset = findOffsetByLanguage(FNAME, "EN-BR\31", &foundOccurences);
+	offset = findDataOffsetByLanguage(FNAME, "EN-BR\31", &foundOccurences);
 	printVector(offset, foundOccurences);
 	free(offset);
 	return 0;
