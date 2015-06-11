@@ -689,37 +689,44 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	FILE *favoriteList  = fopen(listFileName,  "r+");
 	if(favoriteTable == NULL || favoriteList == NULL || removedTweet == NULL) return 0;
 
+	//marking table status as not updated
 	int tableStatus = !UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-
+	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByFavoriteCount(filename, removedTweet->favoriteCount);
-
+	//getting the byteOffset for the item in the list index file
 	FAVITEM *tableItem;
 	if(fseek(favoriteTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(tableItem, sizeof(FAVITEM), 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-
+	//going to the list index file 
 	FAVLISTITEM *current, *previous;
 	if(fseek(favoriteList, tableItem->byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(current, sizeof(FAVLISTITEM), 1, favoriteTable) <= 0)
 			goto RTFFI_EXIT;
-
-	if(current->next == -1) {
+	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
+	if(current->next == -1 && current->fileOffset == offset) {
 		if(fseek(favoriteTable, SEEK_END, SEEK_SET) != 0) goto RTFFI_EXIT;
 		long sizeOfTableFile = ftell(favoriteTable);
 		sizeOfTableFile-= INDEXHEADER;
-
+		//we load the table index file to the memory
 		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile);
+		if (aux == NULL) goto RTFFI_EXIT;
+		//swap the last item in the list with the one to be removed
 		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM))] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
-		realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
+		//realloc the size of the list, cropping the deleted item out
+		aux = realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
+		//sort it again
 		qsort(aux, (sizeOfTableFile/sizeof(FAVITEM)), sizeof(FAVITEM), compareFavoriteItem);
+		//and write it back to the file
 		if(fwrite(aux, sizeOfTableFile, 1, favoriteTable)) goto RTFFI_EXIT;
-
+		//as we've finished removing the element, we update the table status to updated and return
 		rewind(favoriteTable);
 		tableStatus = UPDATED;
 		if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+		free(aux);
 		return 1;
 	}
-
+	//finding the item in the list file and removing it
 	do {
 		previous = current;
 		if(fread(current, sizeof(FAVLISTITEM), 1, favoriteTable) <= 0)
@@ -728,7 +735,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	} while(current->fileOffset != offset || current->next != -1);
 
 	previous->next = current->next;
-
+	//setting the table status to updated and returning
 	rewind(favoriteTable);
 	tableStatus = UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
@@ -761,20 +768,22 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	if(fread(current, sizeof(FAVLISTITEM), 1, languageTable) <= 0)
 			goto RTFLI_EXIT;
 
-	if(current->next == -1) {
+	if(current->next == -1 && current->fileOffset == offset) {
 		if(fseek(languageTable, SEEK_END, SEEK_SET) != 0) goto RTFLI_EXIT;
 		long sizeOfTableFile = ftell(languageTable);
 		sizeOfTableFile-= INDEXHEADER;
 
 		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile);
+		if (aux == NULL) goto RTFLI_EXIT;
 		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM))] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
-		realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
+		aux = realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
 		qsort(aux, (sizeOfTableFile/sizeof(FAVITEM)), sizeof(FAVITEM), compareLanguageItem);
 		if(fwrite(aux, sizeOfTableFile, 1, languageTable)) goto RTFLI_EXIT;
 
 		rewind(languageTable);
 		tableStatus = UPDATED;
 		if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
+		free(aux);
 		return 1;
 	}
 
@@ -833,9 +842,7 @@ int removeTweet(char *filename, long offset) {
 	fieldSize *= -1;
 	if(fwrite(&fieldSize, sizeof(int), 1, file) <= 0) goto REMOVE_TWEET_EXIT;
 
-	//re-generate indexes after deleting tweet from data file
-	//if(!generateIndexes(filename)) goto REMOVE_TWEET_EXIT;
-
+	//removing indexes from the indexes fieldSize
 	if(!removeTweetFromLanguageIndex(filename, removedTweet, offset) ||
 	   !removeTweetFromFavoriteIndex(filename, removedTweet, offset))
 		goto REMOVE_TWEET_EXIT;
@@ -855,10 +862,10 @@ void printTweet(TWEET *tweet){
 	printf("User: %s\n" , 	 		tweet->userName);
 	printf("Coordinate: %s\n", 		tweet->coords);
 	printf("Language: %s\n",		tweet->language);
-	printf("Favorited %d time%s",tweet->viewsCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
+	printf("Favorited %d time%s",tweet->favoriteCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
 	printf("Retweeted %d time%s",tweet->retweetCount, (tweet->retweetCount <= 1)?"\n":"s\n");
-	printf("Viewed %d time%s",tweet->viewsCount, (tweet->viewsCount <= 1)?"\n":"s\n");
-	printf("_________________________________________________");
+	printf("Viewed %ld time%s",tweet->viewsCount, (tweet->viewsCount <= 1)?"\n":"s\n");
+	printf("_________________________________________________\n");
 
 	return;
 }
@@ -873,5 +880,5 @@ void destoryTweet (TWEET **tweet){
 	free((*tweet)->language);
 	
 	free(*tweet);
-	tweet == NULL;
+	tweet = NULL;
 }
