@@ -201,13 +201,13 @@ static void updateLanguageIndexFiles(char* table, char* list, TWEET *tweet, long
 
 	fread(langVector, sizeof(LANGITEM), size, indexTable);
 
-	int index = binarySearch(newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
+	int index = binarySearch(&newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
 	int found = index;
 
 	if(found == -1){
 		langVector = realloc(langVector, (fileSize - sizeof(int) + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
 		langVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
-		strcopy(langVector[size - 1], newEntryOnTab.language);
+		strcpy(langVector[size - 1].language, newEntryOnTab.language);
 		index = size - 1;
 	}
 
@@ -239,12 +239,71 @@ static void updateLanguageIndexFiles(char* table, char* list, TWEET *tweet, long
 	free(langVector);
 }
 
+static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet, long byteOffset){
+/*
+	FILE *indexTable = fopen(table, "r+");
+	FILE *indexList;
+	int updatedStatus = !UPDATED;
+
+	fseek(indexTable, 0, SEEK_END);
+	long fileSize = ftell(indexTable);
+	FAVITEM *favVector = malloc(fileSize - INDEXHEADER);
+	FAVITEM newEntryOnTab;	
+	LANGLISTITEM newEntryOnList;
+	int size = (fileSize - sizeof(int))/sizeof(LANGITEM); 
+	
+	int len = strlen(tweet->language);
+	strncpy(newEntryOnTab.language, tweet->language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
+	newEntryOnTab.byteOffset = byteOffset;
+	newEntryOnTab.language[MAX_LANGUAGE_SIZE - 1] = 0;	
+
+	fread(langVector, sizeof(LANGITEM), size, indexTable);
+
+	int index = binarySearch(&newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
+	int found = index;
+
+	if(found == -1){
+		langVector = realloc(langVector, (fileSize - sizeof(int) + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
+		langVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
+		strcpy(langVector[size - 1].language, newEntryOnTab.language);
+		index = size - 1;
+	}
+
+	indexList = fopen(list, "r+"); //abro a lista em modo append
+	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
+	fseek(indexList, 0, SEEK_END);
+
+	newEntryOnTab.byteOffset = ftell(indexList);//salvo o byteoffset na variavel que vai para a tab
+	newEntryOnList.fileOffset = byteOffset;
+	newEntryOnList.next = langVector[index].byteOffset;
+	
+	fwrite(&newEntryOnList, sizeof newEntryOnList, 1, indexList);
+	langVector[index].byteOffset = newEntryOnTab.byteOffset;
+
+	if(found == -1)
+		qsort(langVector,size, sizeof(LANGITEM), compareLanguageItem);//ordeno o vetor
+	
+	updatedStatus = UPDATED;	
+	fclose(indexTable);
+	indexTable = fopen(table, "w+");
+	fwrite(&updatedStatus, sizeof(int), 1, indexTable);	
+	fwrite(langVector, sizeof(LANGITEM), size, indexTable);
+
+	fseek(indexList, 0, SEEK_SET);
+	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
+
+	fclose(indexTable);
+	fclose(indexList);
+	free(langVector);
+	*/
+}
+
 static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
 	
 	char *table = getLanguageTableIndexFileName(filename);
 	char *list = getLanguageListIndexFileName(filename);
 	
-	updateLanguageIndexFiles(table, list, tweet, byteOffset);
+	updateLanguageIndexFiles (table, list, tweet, byteOffset);
 
 	table = getFavoriteTableIndexFileName(filename);
 	list = getFavoriteListIndexFileName(filename);
