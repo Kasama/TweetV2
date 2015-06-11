@@ -404,12 +404,13 @@ static char *readField(FILE *stream) {
 	char character;
 	int counter = 0;
 
-	do {
-		character = fgetc(stream);
+	character = fgetc(stream);
+	while (character != END_FIELD) {
 		buffer = (char *) realloc(buffer, sizeof(char)
 				* (counter+1));
 		buffer[counter++] = character;
-	} while (character != END_FIELD && character != '\n');
+		character = fgetc(stream);
+	}
 	buffer[counter-1] = '\0';
 
 	return buffer;
