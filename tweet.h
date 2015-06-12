@@ -13,7 +13,7 @@
 #define TWEET_H 
 
 // ascii character "Unit Separator"
-#define   END_FIELD   31
+#define   END_FIELD   '|'
 
 /*
  * Internal Structure of a Tweet:
