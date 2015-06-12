@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <string.h>
 #include "tweet.h"
 
@@ -106,11 +107,11 @@ int compareFavoriteItem(const void* o1, const void* o2){
 		return 1;
 }
 
-static long bestFit(char* filename, long tweetSize, long *minPreviusOffset){
+static long bestFit(char* filename, long tweetSize, long *minPreviousOffset){
 
-	long offset, stackPos, currentPreviusOffset;
+	long offset, stackPos, currentPreviousOffset;
 	int currentDifference, minDifference, blockSize;
-	*minPreviusOffset = 0;
+	*minPreviousOffset = 0;
 
 	FILE *arq = fopen(filename, "r");
 	if(arq == NULL)
@@ -121,26 +122,35 @@ static long bestFit(char* filename, long tweetSize, long *minPreviusOffset){
 	if(stackPos <= 0){
 		if(arq !=NULL)
 			fclose(arq);
-		return 0;
+		return -1;
 	}
 
+	/*
 	if(fseek(arq, stackPos, SEEK_SET) != 0)		goto BESTFIT_ERROR;
+	offset = stackPos;
 	if(fread(&minDifference, sizeof(int), 1, arq) <= 0 )	goto BESTFIT_ERROR;
-	minDifference *= -1;
-	currentPreviusOffset = stackPos;
+	minDifference = abs(minDifference);
+	minDifference = minDifference - tweetSize;
+	currentPreviousOffset = stackPos;
 	if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
+	*/
 
+	currentDifference = INT_MAX;
+	currentPreviousOffset = -1;
+	offset = -1;
 	while(stackPos != -1 && minDifference > 0){
 		if(fseek(arq, stackPos, SEEK_SET) != 0) goto BESTFIT_ERROR;
+
 		if(fread(&blockSize, sizeof(int), 1, arq) <= 0) goto BESTFIT_ERROR;
-		blockSize *= -1;
+		blockSize = abs(blockSize);
 		currentDifference = blockSize - tweetSize;
 
 		if(currentDifference >= 0 && currentDifference < minDifference){
 			minDifference = currentDifference;
-			*minPreviusOffset = currentPreviusOffset;
+			*minPreviousOffset = currentPreviousOffset;
+			offset = stackPos;
 		}
-		currentPreviusOffset = stackPos;	
+		currentPreviousOffset = stackPos;	
 		if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
 	}
 
@@ -149,8 +159,8 @@ BESTFIT_ERROR:
 	return offset;
 }
 
-static long tweetSize(TWEET* tweet){
-	long sum = 0;
+static int tweetSize(TWEET* tweet){
+	int sum = 0;
 	sum += strlen(tweet->text);
 	sum += strlen(tweet->userName);
 	sum += strlen(tweet->coords);
@@ -160,22 +170,24 @@ static long tweetSize(TWEET* tweet){
 	return sum;
 }
 
-static void flushTweet(char* filename, long byteOffset, long fieldsize, TWEET *tweet){
+static void flushTweet(char* filename, long byteOffset, int fieldsize, TWEET *tweet){
 
 	FILE *arq = NULL;
-	if(byteOffset == 0){
-		arq = fopen(filename, "a");
-		if(arq == NULL) return;
-	}else{
-		arq = fopen(filename, "w+");
-		if(arq == NULL) return;
+	arq = fopen(filename, "a");
+	arq = freopen(filename, "r+", arq );
+	if(arq == NULL) return;
+
+	if(byteOffset != 0){
 		if(fseek(arq, byteOffset, SEEK_SET) != 0)	goto FLUSHTWEET_EXIT;
 	}
-	if(fwrite(&fieldsize, sizeof(int), 1, arq) <= 0)		goto FLUSHTWEET_EXIT;
-	if(fwrite(tweet->text, sizeof(int), 1, arq) <= 0)		goto FLUSHTWEET_EXIT;
-	if(fwrite(tweet->userName, sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
-	if(fwrite(tweet->coords, sizeof(int), 1, arq) <= 0)		goto FLUSHTWEET_EXIT;
-	if(fwrite(tweet->language, sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
+	if(fwrite(&fieldsize, sizeof fieldsize, 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->text, sizeof(char), strlen(tweet->text), arq) <= 0)		goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->userName, sizeof(char), strlen(tweet->userName), arq) <= 0)		goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->coords, sizeof(char), strlen(tweet->coords), arq) <= 0)		goto FLUSHTWEET_EXIT;
+	if(fwrite(tweet->language, sizeof(char), strlen(tweet->language), arq) <= 0)		goto FLUSHTWEET_EXIT;
+	if(fwrite(&(tweet->favoriteCount), sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
+	if(fwrite(&(tweet->retweetCount), sizeof(int), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
+	if(fwrite(&(tweet->viewsCount), sizeof(long), 1, arq) <= 0)	goto FLUSHTWEET_EXIT;
 
 FLUSHTWEET_EXIT:
 	if(arq != NULL) fclose(arq);
@@ -183,35 +195,41 @@ FLUSHTWEET_EXIT:
 
 static void updateLanguageIndexFiles(char* table, char* list, TWEET *tweet, long byteOffset){
 	
-	FILE *indexTable = fopen(table, "r+");
-	FILE *indexList;
+	FILE *indexTable = fopen(table, "a");
+	indexTable = freopen(table, "r+", indexTable);
+	FILE *indexList = NULL;
 	int updatedStatus = !UPDATED;
 
 	fseek(indexTable, 0, SEEK_END);
 	long fileSize = ftell(indexTable);
+	fseek(indexTable, INDEXHEADER, SEEK_SET);
 	LANGITEM *langVector = malloc(fileSize - INDEXHEADER);
 	LANGITEM newEntryOnTab;	
 	LANGLISTITEM newEntryOnList;
-	int size = (fileSize - sizeof(int))/sizeof(LANGITEM); 
+	int size = (fileSize - INDEXHEADER)/sizeof(LANGITEM); 
+	if (size < 0) size = 0;
 	
 	int len = strlen(tweet->language);
-	strncpy(newEntryOnTab.language, tweet->language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
-	newEntryOnTab.byteOffset = byteOffset;
-	newEntryOnTab.language[MAX_LANGUAGE_SIZE - 1] = 0;	
+	len = (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len;
+	strncpy(newEntryOnTab.language, tweet->language, len);
+	//newEntryOnTab.byteOffset = byteOffset;
+	newEntryOnTab.language[len - 1] = 0;	
 
 	fread(langVector, sizeof(LANGITEM), size, indexTable);
-
 	int index = binarySearch(&newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
 	int found = index;
 
 	if(found == -1){
-		langVector = realloc(langVector, (fileSize - sizeof(int) + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
+		langVector = realloc(langVector, (fileSize - INDEXHEADER + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
+		size++;
 		langVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
 		strcpy(langVector[size - 1].language, newEntryOnTab.language);
 		index = size - 1;
 	}
 
-	indexList = fopen(list, "r+"); //abro a lista em modo append
+	indexList = fopen(list, "a"); //abro a lista em modo append
+	indexList = freopen(list, "r+", indexList);
+	fseek(indexList, 0, SEEK_SET);
 	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
 	fseek(indexList, 0, SEEK_END);
 
@@ -241,35 +259,39 @@ static void updateLanguageIndexFiles(char* table, char* list, TWEET *tweet, long
 
 static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet, long byteOffset){
 
-	FILE *indexTable = fopen(table, "r+");
-	FILE *indexList;
+	FILE *indexTable = fopen(table, "a");
+	indexTable = freopen(table,"r+",indexTable );
+	FILE *indexList = NULL;
 	int updatedStatus = !UPDATED;
 
 	fseek(indexTable, 0, SEEK_END);
 	long fileSize = ftell(indexTable);
+	fseek(indexTable, INDEXHEADER, SEEK_SET);
 	FAVITEM *favVector = malloc(fileSize - INDEXHEADER);
 	FAVITEM newEntryOnTab;	
-	LANGLISTITEM newEntryOnList;
-	int size = (fileSize - sizeof(int))/sizeof(LANGITEM); 
+	FAVLISTITEM newEntryOnList;
+	int size = (fileSize - INDEXHEADER)/sizeof(FAVITEM); 
+	if (size < 0) size = 0;
 	
-	int len = strlen(tweet->language);
 	newEntryOnTab.favoriteCount = tweet->favoriteCount;
-	newEntryOnTab.byteOffset = byteOffset;
-	newEntryOnTab.favoriteCount = 0;	
+	//newEntryOnTab.byteOffset = byteOffset;
 
-	fread(favVector, sizeof(LANGITEM), size, indexTable);
+	fread(favVector, sizeof(FAVITEM), size, indexTable);
 
-	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(LANGITEM), compareLanguageItem);	
+	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(FAVITEM), compareLanguageItem);	
 	int found = index;
 
 	if(found == -1){
-		favVector = realloc(favVector, (fileSize - sizeof(int) + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
+		favVector = realloc(favVector, (fileSize - sizeof(int) + sizeof(FAVITEM))); //adicionado um espaço para acrescentar a nova entrada
+		size++;
 		favVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
 		favVector[size - 1].favoriteCount = newEntryOnTab.favoriteCount;
 		index = size - 1;
 	}
 
-	indexList = fopen(list, "r+"); //abro a lista em modo append
+	indexList = fopen(list, "a"); //abro a lista em modo append
+	indexList = freopen(list,"r+",indexList );
+	fseek(indexList, 0, SEEK_SET);
 	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
 	fseek(indexList, 0, SEEK_END);
 
@@ -281,13 +303,13 @@ static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet,
 	favVector[index].byteOffset = newEntryOnTab.byteOffset;
 
 	if(found == -1)
-		qsort(favVector,size, sizeof(LANGITEM), compareLanguageItem);//ordeno o vetor
+		qsort(favVector,size, sizeof(FAVITEM), compareFavoriteItem);//ordeno o vetor
 	
 	updatedStatus = UPDATED;	
 	fclose(indexTable);
 	indexTable = fopen(table, "w+");
 	fwrite(&updatedStatus, sizeof(int), 1, indexTable);	
-	fwrite(favVector, sizeof(LANGITEM), size, indexTable);
+	fwrite(favVector, sizeof(FAVITEM), size, indexTable);
 
 	fseek(indexList, 0, SEEK_SET);
 	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
@@ -303,6 +325,9 @@ static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
 	char *list = getLanguageListIndexFileName(filename);
 	
 	updateLanguageIndexFiles (table, list, tweet, byteOffset);
+
+	free(list);
+	free(table);
 
 	table = getFavoriteTableIndexFileName(filename);
 	list = getFavoriteListIndexFileName(filename);
@@ -341,25 +366,35 @@ void writeTweet(char *filename, TWEET *tw){
 	tweet->favoriteCount = tw->favoriteCount;
 	tweet->retweetCount = tw->retweetCount;
 	tweet->viewsCount = tw->viewsCount;
+
 	
-	long tweetsize = tweetSize(tweet);  //tamanho do tweet a ser inserido
+	int tweetsize = tweetSize(tweet);  //tamanho do tweet a ser inserido
 	long previusOffset, previusOffsetValue, byteOffset;
+	long stackHead = 0;
 	
 	char *datafilename = getDataFileName(filename); //nome do arquivo de dados
-	FILE *arq = fopen(datafilename, "w+");
-	if(arq == NULL) return;
+	FILE *arq = fopen(datafilename, "a");
+	arq = freopen(datafilename, "r+", arq);
 
-	long stackHead;
-	if(fread(&stackHead, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //cabeça da pilha de removidos
+	if(arq == NULL) return;
+	fseek(arq, 0, SEEK_END);
+	if(ftell(arq) == 0){
+		stackHead = -1;
+		fwrite(&stackHead, sizeof stackHead, 1, arq);
+	}
+	fseek(arq, 0, SEEK_SET);
+
+	if(stackHead == 0)
+		if(fread(&stackHead, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //cabeça da pilha de removidos
 	
 	if(stackHead == -1){ // não existe espaço logicamente removido
 		if(fseek(arq, 0, SEEK_END) != 0) goto WRITETWEET_EXIT;
-		flushTweet(datafilename, ftell(arq), tweetsize, tweet);
-
+		byteOffset = ftell(arq);
+		flushTweet(datafilename, byteOffset, tweetsize, tweet);
 	}else{//existe espaço logicamente removido
 		byteOffset = bestFit(datafilename, tweetsize, &previusOffset); //byteoffset para a inserção do tweet
 		int fieldSize;
-		
+		if(byteOffset <= 0) goto WRITETWEET_EXIT;
 		if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //posicionado o cursor para o inicio do offset de insercao
 		if(fread(&fieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo o tamanho do campo de insersao
 		long newFieldSize = fieldSize - (tweetsize + sizeof(int));
@@ -370,14 +405,16 @@ void writeTweet(char *filename, TWEET *tw){
 			if(fread(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo a posicao do proximo campo removido
 			if(fseek(arq, previusOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT; //movendo cursor para o campo anterior
 			if(fwrite(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo a proxima posicao no campo anterior
+			if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;
+			flushTweet(datafilename, byteOffset, tweetsize, tweet);//inserindo tweet 
 		}else{//o campo eh muito pequeno
 			byteOffset += sizeof(int) + newFieldSize;//atualizando a variavel de posicao do tweet a ser inserido, deixando um espaco removido antes
+			newFieldSize = -abs(newFieldSize);//atualizando o tamanho do campo novo para removido (negativo)			
+			if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;//posicionando o cursor para o comeco do campo 
+			if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo o novo valor do campo
+			flushTweet(datafilename, byteOffset, tweetsize, tweet);//inserindo tweet 
 		}
 
-		newFieldSize *= -1;//atualizando o tamanho do campo novo para removido (negativo)			
-		if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;//posicionando o cursor para o comeco do campo 
-		if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo o novo valor do campo
-		flushTweet(datafilename, byteOffset, tweetsize, tweet);//inserindo tweet 
 	}
 	//atualizando os indices
 	updateIndexFiles(tweet, byteOffset, filename);
@@ -423,28 +460,19 @@ static char *readField(FILE *stream) {
 	char character;
 	int counter = 0;
 
-	character = fgetc(stream);
-	while (character != END_FIELD) {
+	do {
+		character = fgetc(stream);
 		buffer = (char *) realloc(buffer, sizeof(char)
 				* (counter+1));
 		buffer[counter++] = character;
-		character = fgetc(stream);
-	}
+	}while (character != END_FIELD);
 	buffer[counter-1] = '\0';
 
 	return buffer;
 }
 
-static char *getDataFileName(char *filename){
-	char *file;
-	file = malloc(strlen(filename)+4);
-	strcpy(file, filename);
-	strcat(file, ".dat");
-	return file;
-}
-
 TWEET *readTweet(char *filename, long offset){
-	int i, size;
+	int size;
 	FILE *dataFile;
 	char buff;
 
@@ -455,27 +483,23 @@ TWEET *readTweet(char *filename, long offset){
 	char * datafilename = getDataFileName(filename);
 	dataFile = fopen(datafilename, "r");
 
-	if (dataFile == NULL)
-	{
+	if (dataFile == NULL) {
 		return NULL;
 	}
 
-	i = fseek(dataFile, offset, SEEK_SET);
-
-	if (!i)
-	{
+	if (fseek(dataFile, offset, SEEK_SET) != 0) {
 		return NULL;
 	}
 
 	fread(&size, sizeof(int), 1, dataFile);
 
-	if (size < 0)
-	{
+	if (size < 0) {
 		return NULL;
 	}
 
 	void *dataRaw;
 	dataRaw = malloc(size);
+	if (dataRaw == NULL) return NULL;
 
 	fread(dataRaw, size, 1, dataFile);
 
@@ -532,22 +556,24 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	
 	TWEET *tt = NULL;
 	long offset = HEADER;		// Offset of the last begin of tweet
-	long nextTweet;				// Offset from the last begin of tweet until the next begin of tweet
+	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
 	
 	fseek(f, offset, SEEK_SET);
 	while(fread(&nextTweet, 
-		sizeof(long), 1, f)) {
+		sizeof nextTweet, 1, f) > 0 ) {
 		if (nextTweet > 0){
 			tt = readTweet(filename, offset);
-			if (!strcmp(username, tt->userName)) {
-				*foundOccurences++;
+			int cmp = strcmp(username, tt->userName);
+			if (cmp == 0) {
+				(*foundOccurences)++;
 				listOffset = realloc(listOffset, *foundOccurences);
-				listOffset[*foundOccurences-1] = offset;
+				listOffset[(*foundOccurences)-1] = offset;
 			}
 			free(tt);
 		}
 		
-		offset += abs(nextTweet) + sizeof(long);
+		offset += abs(nextTweet) + sizeof nextTweet;
+		fseek(f, offset, SEEK_SET);
 	}
 
 OFFSERBYUSER_EXIT:
@@ -611,6 +637,7 @@ static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 		goto findFavRetTab;
 	fseek(fileTab, 0, SEEK_END);
 	nTweets = (ftell(fileTab)-INDEXHEADER)/sizeof(FAVITEM);
+	fseek(fileTab, INDEXHEADER, SEEK_SET);
 	FAVITEM *items = malloc(nTweets*sizeof(FAVITEM));
 	if (items == NULL)
 		goto findFavRetTab;
@@ -619,7 +646,8 @@ static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 
 	FAVITEM key;
 	key.favoriteCount = favoriteCount;
-
+	for (int i = 0; i < nTweets; i++){
+	}
 	int found = binarySearch(&key, items, nTweets, sizeof(FAVITEM), compareFavoriteItem);
 	if (found == -1)
 		goto findFavRetTab;
@@ -632,7 +660,7 @@ findFavRet:
 }
 
 static long findIndexOffsetByLanguage(char *filename, char* language){
-	long ret = NULL;
+	long ret = -1;
 	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
 	FILE *fileTab = fopen(langIdxTabFileName, "r");
 	free(langIdxTabFileName);
@@ -646,6 +674,7 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 		goto findLangRetTab;
 	fseek(fileTab, 0, SEEK_END);
 	nTweets = (ftell(fileTab)-INDEXHEADER)/sizeof(LANGITEM);
+	fseek(fileTab, INDEXHEADER, SEEK_SET);
 	LANGITEM *items = malloc(nTweets*sizeof(LANGITEM));
 	if (items == NULL)
 		goto findLangRetTab;
@@ -656,7 +685,6 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 	int len = strlen(language);
 	strncpy(key.language, language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
 	key.language[MAX_LANGUAGE_SIZE-1] = 0;
-
 	int found = binarySearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
 	if (found == -1)
 		goto findLangRetTab;
@@ -688,9 +716,9 @@ long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *fou
 
 	FAVLISTITEM current;
 	do {
-		if (fread(&current, sizeof current, 1, fileList) == 0)
+		if (fread(&current, sizeof current, 1, fileList) <= 0)
 			goto findFavRetList;
-		*foundOccurences++;
+		(*foundOccurences)++;
 		ret = realloc(ret, (sizeof current)*(*foundOccurences));
 		if (ret == NULL)
 			goto findFavRetList;
@@ -726,47 +754,33 @@ long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccure
 		goto findLangRetList;
 	fseek(fileTab, 0, SEEK_END);
 	nTweets = (ftell(fileTab)-INDEXHEADER)/sizeof(LANGITEM);
+	fseek(fileTab, INDEXHEADER, SEEK_SET);
 	LANGITEM *items = malloc(nTweets*sizeof(LANGITEM));
 	if (items == NULL)
 		goto findLangRetList;
 	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) == 0)
 		goto findLangRetList;
 
-	LANGITEM key;
-	int len = strlen(language);
-	strncpy(key.language, language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
-	key.language[MAX_LANGUAGE_SIZE-1] = 0;
-
 	long offset;
 	offset = findIndexOffsetByLanguage(filename, language);
 	fseek(fileTab, offset, SEEK_SET);
-	FAVITEM i;
+	LANGITEM i;
 	fread(&i, sizeof i, 1, fileTab);
 	fseek(fileList, i.byteOffset, SEEK_SET);
 
-	FAVLISTITEM current;
-	char *dataFileName = getDataFileName(filename);
-	FILE *dataFile = fopen(dataFileName, "r");
-	free(dataFileName);
-	if (dataFile == NULL)
-		goto findLangRetList;
+	LANGLISTITEM current;
 	do {
 		if (fread(&current, sizeof current, 1, fileList) == 0)
-			goto findLangRetData;
-		fseek(dataFile, current.fileOffset, SEEK_SET);
-		TWEET *t;
-		if (fread(t, sizeof t, 1, dataFile) == 0)
-			goto findLangRet;
+			goto findLangRetList;
+		TWEET *t = readTweet(filename, current.fileOffset);
 		if (strcmp(t->language, language) == 0){
 			ret = realloc(ret, sizeof current);
 			if (ret == NULL)
-				goto findLangRetData;
+				goto findLangRetList;
 			ret[(*foundOccurences)++] = current.fileOffset;
 		}
 	}while(current.next != -1);
 
-findLangRetData:
-	fclose(dataFile);
 findLangRetList:
 	fclose(fileList);
 findLangRetTab:
