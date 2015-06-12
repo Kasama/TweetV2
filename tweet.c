@@ -683,8 +683,9 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 
 	LANGITEM key;
 	int len = strlen(language);
-	strncpy(key.language, language, (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len);
-	key.language[MAX_LANGUAGE_SIZE-1] = 0;
+	len = (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len;
+	strncpy(key.language, language, len);
+	key.language[len] = 0;
 	int found = binarySearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
 	if (found == -1)
 		goto findLangRetTab;
@@ -808,27 +809,31 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	//going to the list index file 
 	FAVLISTITEM current, previous;
 	if(fseek(favoriteList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
-	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteTable) <= 0)
+	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
 			goto RTFFI_EXIT;
 	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
 	if(current.next == -1 && current.fileOffset == offset) {
-		if(fseek(favoriteTable, SEEK_END, SEEK_SET) != 0) goto RTFFI_EXIT;
+		if(fseek(favoriteTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
 		long sizeOfTableFile = ftell(favoriteTable);
-		sizeOfTableFile-= INDEXHEADER;
 		//we load the table index file to the memory
-		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile);
+		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile - INDEXHEADER);
 		if (aux == NULL) goto RTFFI_EXIT;
 		//swap the last item in the list with the one to be removed
-		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(FAVITEM))] = aux[(sizeOfTableFile/sizeof(FAVITEM))-1];
+		int tabIndex = (tableOffset - INDEXHEADER)/sizeof(FAVITEM);
+		int lastTabIndex = (sizeOfTableFile - INDEXHEADER)/sizeof(FAVITEM);
+		aux[tabIndex] = aux[lastTabIndex];
 		//realloc the size of the list, cropping the deleted item out
-		aux = realloc(aux, sizeOfTableFile - sizeof(FAVITEM));
-		if(aux == NULL) goto RTFFI_EXIT;
-		//sort it again
-		qsort(aux, (sizeOfTableFile/sizeof(FAVITEM)), sizeof(FAVITEM), compareFavoriteItem);
-		//and write it back to the file
-		if(fwrite(aux, sizeOfTableFile, 1, favoriteTable)) goto RTFFI_EXIT;
-		//as we've finished removing the element, we update the table status to updated and return
-		rewind(favoriteTable);
+		aux = realloc(aux, sizeOfTableFile - INDEXHEADER - sizeof(FAVITEM));
+		favoriteTable = freopen(tableFileName, "w+", favoriteTable);
+		fseek(favoriteTable, INDEXHEADER, SEEK_SET);
+		if(aux != NULL) {
+			//sort it again
+			qsort(aux, lastTabIndex, sizeof(FAVITEM), compareFavoriteItem);
+			//and write it back to the file
+			if(fwrite(aux, sizeOfTableFile, 1, favoriteTable)) goto RTFFI_EXIT;
+			//as we've finished removing the element, we update the table status to updated and return
+		}
+		fseek(favoriteTable, 0, SEEK_SET);
 		tableStatus = UPDATED;
 		if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 		free(aux);
@@ -846,7 +851,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 
 	previous.next = current.next;
 	//setting the table status to updated and returning
-	rewind(favoriteTable);
+	fseek(favoriteTable, 0, SEEK_SET);
 	tableStatus = UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 	fclose(favoriteTable);
@@ -878,27 +883,31 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	//going to the list index file
 	LANGLISTITEM current, previous;
 	if(fseek(languageList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
-	if(fread(&current, sizeof(LANGLISTITEM), 1, languageTable) <= 0)
+	if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
 			goto RTFLI_EXIT;
 	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
 	if(current.next == -1 && current.fileOffset == offset) {
-		if(fseek(languageTable, SEEK_END, SEEK_SET) != 0) goto RTFLI_EXIT;
+		if(fseek(languageTable, 0, SEEK_END) != 0) goto RTFLI_EXIT;
 		long sizeOfTableFile = ftell(languageTable);
-		sizeOfTableFile -= INDEXHEADER;
 		//we load the table index file to the memory
-		LANGITEM *aux = (LANGITEM *) malloc(sizeOfTableFile);
+		LANGITEM *aux = (LANGITEM *) malloc(sizeOfTableFile - INDEXHEADER);
 		if (aux == NULL) goto RTFLI_EXIT;
 		//swap the last item in the list with the one to be removed
-		aux[(tableOffset - INDEXHEADER)/(sizeOfTableFile/sizeof(LANGITEM))] = aux[(sizeOfTableFile/sizeof(LANGITEM))-1];
+		int tabIndex = (tableOffset - INDEXHEADER)/sizeof(LANGITEM);
+		int lastTabIndex = (sizeOfTableFile - INDEXHEADER)/sizeof(LANGITEM);
+		aux[tabIndex] = aux[lastTabIndex];
 		//realloc the size of the list, cropping the deleted item out
-		aux = realloc(aux, sizeOfTableFile - sizeof(LANGITEM));
-		if(aux == NULL) goto RTFLI_EXIT;
-		//sort it again
-		qsort(aux, (sizeOfTableFile/sizeof(LANGITEM)), sizeof(LANGITEM), compareLanguageItem);
-		//and write it back to the table index file
-		if(fwrite(aux, sizeOfTableFile, 1, languageTable)) goto RTFLI_EXIT;
-		//as we've finished removing the element, we update the table status to updated and return
-		rewind(languageTable);
+		aux = realloc(aux, sizeOfTableFile - INDEXHEADER - sizeof(LANGITEM));
+		languageTable = freopen(tableFileName, "w+", languageTable);
+		fseek(languageTable, INDEXHEADER, SEEK_SET);
+		if (aux != NULL){
+			//sort it again
+			qsort(aux, lastTabIndex, sizeof(LANGITEM), compareLanguageItem);
+			//and write it back to the table index file
+			if(fwrite(aux, sizeOfTableFile, 1, languageTable)) goto RTFLI_EXIT;
+			//as we've finished removing the element, we update the table status to updated and return
+		}
+		fseek(languageTable, 0, SEEK_SET);
 		tableStatus = UPDATED;
 		if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
 		free(aux);
@@ -916,7 +925,7 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 
 	previous.next = current.next;
 	//setting the table status to updated and returning
-	rewind(languageTable);
+	fseek(languageTable, 0, SEEK_SET);
 	tableStatus = UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
 	fclose(languageTable);
@@ -945,9 +954,9 @@ int removeTweet(char *filename, long offset) {
 	
 	//tries to move til the deletion's offset
 	if(fseek(file, offset, SEEK_SET) != 0) goto REMOVE_TWEET_EXIT;
-	int fieldSize;
 
 	//tries to save the size of the register and moves sizeof(int) forward
+	int fieldSize;
 	if(fread(&fieldSize, sizeof(int), 1, file) <= 0) goto REMOVE_TWEET_EXIT;
 
 	//checks if the register is already removed
@@ -957,7 +966,7 @@ int removeTweet(char *filename, long offset) {
 	if(fwrite(&stackHead, sizeof(long), 1, file) <= 0) goto REMOVE_TWEET_EXIT;
 
 	//tries to update the stack's head in the file's beginning
-	if(fseek(file, SEEK_SET, SEEK_SET) != 0) goto REMOVE_TWEET_EXIT;
+	if(fseek(file, 0, SEEK_SET) != 0) goto REMOVE_TWEET_EXIT;
 	if(fwrite(&offset, sizeof(long), 1, file) <= 0) goto REMOVE_TWEET_EXIT;
 
 	//tries to back to the register and mark it as removed (negative)
@@ -966,8 +975,10 @@ int removeTweet(char *filename, long offset) {
 	if(fwrite(&fieldSize, sizeof(int), 1, file) <= 0) goto REMOVE_TWEET_EXIT;
 
 	//removing indexes from the indexes fieldSize
-	if(!removeTweetFromLanguageIndex(filename, removedTweet, offset) ||
-	   !removeTweetFromFavoriteIndex(filename, removedTweet, offset))
+	int langRet = removeTweetFromLanguageIndex(filename, removedTweet, offset);
+	int favRet = removeTweetFromFavoriteIndex(filename, removedTweet, offset);
+	printf("lang: %d, fav: %d\n", langRet, favRet);
+	if(!langRet || !favRet)
 		goto REMOVE_TWEET_EXIT;
 
 	fclose(file);
