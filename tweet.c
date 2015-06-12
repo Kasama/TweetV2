@@ -10,6 +10,13 @@
 #define UPDATED 1
 #define MAX_LANGUAGE_SIZE 50
 
+typedef struct langIndexItem{
+
+	char language[MAX_LANGUAGE_SIZE];
+	long byteOffset;
+
+}LANGITEM;
+
 int binarySearch(										\
 	register const void *key,							\
 	const void *base0,									\
@@ -26,9 +33,15 @@ int binarySearch(										\
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		int index = (lim >> 1) * size;
 		p = base + index;
+		if (size == sizeof(LANGITEM)){
+			for (int i = 0; i < strlen(((LANGITEM*)p)->language); i++){
+			}
+			for (int i = 0; i < strlen(((LANGITEM*)key)->language); i++){
+			}
+		}
 		cmp = (*compar)(key, p);
 		if (cmp == 0)
-			return index;
+			return index/size;
 		if (cmp > 0) {	/* key > p: move right */
 			base = (char *)p + size;
 			lim--;
@@ -62,13 +75,6 @@ typedef struct favIndexListItem{
 	long next;
 
 }FAVLISTITEM;
-
-typedef struct langIndexItem{
-
-	char language[MAX_LANGUAGE_SIZE];
-	long byteOffset;
-
-}LANGITEM;
 
 typedef struct langIndexListItem{
 	
@@ -369,7 +375,7 @@ void writeTweet(char *filename, TWEET *tw){
 
 	
 	int tweetsize = tweetSize(tweet);  //tamanho do tweet a ser inserido
-	long previusOffset, previusOffsetValue, byteOffset;
+	long previousOffset, previusOffsetValue, byteOffset;
 	long stackHead = 0;
 	
 	char *datafilename = getDataFileName(filename); //nome do arquivo de dados
@@ -392,28 +398,38 @@ void writeTweet(char *filename, TWEET *tw){
 		byteOffset = ftell(arq);
 		flushTweet(datafilename, byteOffset, tweetsize, tweet);
 	}else{//existe espaço logicamente removido
-		byteOffset = bestFit(datafilename, tweetsize, &previusOffset); //byteoffset para a inserção do tweet
+		byteOffset = bestFit(datafilename, tweetsize, &previousOffset); //byteoffset para a inserção do tweet
 		int fieldSize;
-		if(byteOffset <= 0) goto WRITETWEET_EXIT;
-		if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //posicionado o cursor para o inicio do offset de insercao
-		if(fread(&fieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo o tamanho do campo de insersao
-		long newFieldSize = fieldSize - (tweetsize + sizeof(int));
-		
-		if(newFieldSize < minTweetSize){ //o tamanho do campo de insercao eh muito pequeno
-			long nextOffset;
-			if(fseek(arq, byteOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT; //cursor antes do long que indica o proximo campo removido 
-			if(fread(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo a posicao do proximo campo removido
-			if(fseek(arq, previusOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT; //movendo cursor para o campo anterior
-			if(fwrite(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo a proxima posicao no campo anterior
-			if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;
-			flushTweet(datafilename, byteOffset, tweetsize, tweet);//inserindo tweet 
-		}else{//o campo eh muito pequeno
-			byteOffset += sizeof(int) + newFieldSize;//atualizando a variavel de posicao do tweet a ser inserido, deixando um espaco removido antes
-			newFieldSize = -abs(newFieldSize);//atualizando o tamanho do campo novo para removido (negativo)			
-			if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;//posicionando o cursor para o comeco do campo 
-			if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo o novo valor do campo
-			flushTweet(datafilename, byteOffset, tweetsize, tweet);//inserindo tweet 
+		printf("best fit deve ter dado -1: %ld\n", byteOffset);
+		if(byteOffset == -1){ // nao tem onde colocar o registro. Append
+			if(fseek(arq, 0, SEEK_END) != 0) goto WRITETWEET_EXIT;
+			byteOffset = ftell(arq);
+		}else{ // tem onde colocar o registro entre os espaços removidos
+			if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //posicionado o cursor para o inicio do offset de insercao
+			if(fread(&fieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo o tamanho do campo de insersao
+			fieldSize = abs(fieldSize);
+			int newFieldSize = fieldSize - (tweetsize + sizeof(int));
+			if(previousOffset == -1){
+				previousOffset = 0;
+			}else{
+				previousOffset = previousOffset - sizeof(int);
+			}
+
+			if(newFieldSize < minTweetSize){ //o tamanho do campo de insercao eh muito pequeno
+				long nextOffset;
+				if(fseek(arq, byteOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT; //cursor antes do long que indica o proximo campo removido 
+				if(fread(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo a posicao do proximo campo removido
+				if(fseek(arq, previousOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //movendo cursor para o campo anterior
+				if(fwrite(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo a proxima posicao no campo anterior
+				if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;
+			}else{//o campo eh muito pequeno
+				if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;//posicionando o cursor para o comeco do campo 
+				byteOffset += sizeof(int) + newFieldSize;//atualizando a variavel de posicao do tweet a ser inserido, deixando um espaco removido antes
+				newFieldSize = -abs(newFieldSize);//atualizando o tamanho do campo novo para removido (negativo)			
+				if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo o novo valor do campo
+			}
 		}
+		flushTweet(datafilename, byteOffset, tweetsize, tweet);//inserindo tweet 
 
 	}
 	//atualizando os indices
@@ -434,7 +450,7 @@ TWEET *newTweet(				\
 		int    favoriteCount,   \
 		int    retweetCount,    \
 		long   viewsCount       \
-){
+		){
 	TWEET *tw;
 	tw = malloc(sizeof(TWEET));
 
@@ -447,7 +463,7 @@ TWEET *newTweet(				\
 	strcpy(tw->userName, userName);
 	strcpy(tw->coords, coords);
 	strcpy(tw->language, language);
-	
+
 	tw->favoriteCount = favoriteCount;
 	tw->retweetCount = retweetCount;
 	tw->viewsCount = viewsCount;
@@ -479,7 +495,7 @@ TWEET *readTweet(char *filename, long offset){
 	TWEET *tw;
 
 	tw = malloc(sizeof(TWEET));
-	
+
 	char * datafilename = getDataFileName(filename);
 	dataFile = fopen(datafilename, "r");
 
@@ -513,7 +529,7 @@ TWEET *readTweet(char *filename, long offset){
 	fread(&(tw->favoriteCount), sizeof(int), 1, mem); 
 	fread(&(tw->retweetCount), sizeof(int), 1, mem); 
 	fread(&(tw->viewsCount), sizeof(long), 1, mem);
-	
+
 	if(datafilename != NULL) free(datafilename);
 	return tw; 
 }
@@ -549,18 +565,18 @@ static char *getFavoriteListIndexFileName(char *filename){
 long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	*foundOccurences = 0;
 	long *listOffset = NULL;
-	
+
 	char * datafilename = getDataFileName(filename);
 	FILE *f = fopen(datafilename, "r");
 	if (f == NULL) goto OFFSERBYUSER_EXIT;
-	
+
 	TWEET *tt = NULL;
 	long offset = HEADER;		// Offset of the last begin of tweet
 	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
-	
+
 	fseek(f, offset, SEEK_SET);
 	while(fread(&nextTweet, 
-		sizeof nextTweet, 1, f) > 0 ) {
+				sizeof nextTweet, 1, f) > 0 ) {
 		if (nextTweet > 0){
 			tt = readTweet(filename, offset);
 			int cmp = strcmp(username, tt->userName);
@@ -571,7 +587,7 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 			}
 			free(tt);
 		}
-		
+
 		offset += abs(nextTweet) + sizeof nextTweet;
 		fseek(f, offset, SEEK_SET);
 	}
@@ -685,6 +701,7 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 	int len = strlen(language);
 	len = (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len;
 	strncpy(key.language, language, len);
+	//TODO ver issae
 	key.language[len] = 0;
 	int found = binarySearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
 	if (found == -1)
@@ -724,6 +741,7 @@ long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *fou
 		if (ret == NULL)
 			goto findFavRetList;
 		ret[(*foundOccurences)-1] = current.fileOffset;
+		if (current.next > 0) fseek(fileList, current.next, SEEK_SET);
 	}while(current.next != -1);
 
 findFavRetTab:
@@ -764,6 +782,7 @@ long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccure
 
 	long offset;
 	offset = findIndexOffsetByLanguage(filename, language);
+	if (offset == -1) goto findLangRetList;
 	fseek(fileTab, offset, SEEK_SET);
 	LANGITEM i;
 	fread(&i, sizeof i, 1, fileTab);
@@ -780,6 +799,7 @@ long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccure
 				goto findLangRetList;
 			ret[(*foundOccurences)++] = current.fileOffset;
 		}
+		if (current.next > 0) fseek(fileList, current.next, SEEK_SET);
 	}while(current.next != -1);
 
 findLangRetList:
@@ -810,7 +830,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	FAVLISTITEM current, previous;
 	if(fseek(favoriteList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
-			goto RTFFI_EXIT;
+		goto RTFFI_EXIT;
 	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
 	if(current.next == -1 && current.fileOffset == offset) {
 		if(fseek(favoriteTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
@@ -842,14 +862,18 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 		return 1;
 	}
 	//finding the item in the list file and removing it
+	long toUpdate;
 	do {
+		toUpdate = ftell(favoriteList) - sizeof(FAVLISTITEM);
+		if(fseek(favoriteList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
 		previous = current;
-		if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteTable) <= 0)
+		if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
 			goto RTFFI_EXIT;
-		if(fseek(favoriteList, current.fileOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	} while(current.fileOffset != offset || current.next != -1);
 
+	fseek(favoriteList, toUpdate, SEEK_SET);
 	previous.next = current.next;
+	fwrite(&previous, sizeof previous, 1, favoriteList);
 	//setting the table status to updated and returning
 	fseek(favoriteTable, 0, SEEK_SET);
 	tableStatus = UPDATED;
@@ -876,17 +900,21 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
 	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByLanguage(filename, removedTweet->language);
+	printf("achei a lang em %ld\n", tableOffset);
 	//getting the byteOffset for the item in the list index file
 	LANGITEM tableItem;
 	if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	if(fread(&tableItem, sizeof(LANGITEM), 1, languageTable) <= 0) goto RTFLI_EXIT;
 	//going to the list index file
 	LANGLISTITEM current, previous;
+	printf("offset no list: %s - %ld\n",tableItem.language, tableItem.byteOffset);
 	if(fseek(languageList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
-			goto RTFLI_EXIT;
+		goto RTFLI_EXIT;
 	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
+	printf("current : (%ld,%ld)\n", current.fileOffset, current.next);
 	if(current.next == -1 && current.fileOffset == offset) {
+		printf("entrei aqui\n");
 		if(fseek(languageTable, 0, SEEK_END) != 0) goto RTFLI_EXIT;
 		long sizeOfTableFile = ftell(languageTable);
 		//we load the table index file to the memory
@@ -894,7 +922,11 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 		if (aux == NULL) goto RTFLI_EXIT;
 		//swap the last item in the list with the one to be removed
 		int tabIndex = (tableOffset - INDEXHEADER)/sizeof(LANGITEM);
-		int lastTabIndex = (sizeOfTableFile - INDEXHEADER)/sizeof(LANGITEM);
+		int lastTabIndex = ((sizeOfTableFile - INDEXHEADER)/sizeof(LANGITEM))-1;
+		fseek(languageTable, INDEXHEADER, SEEK_SET);
+		fread(aux, sizeof(LANGITEM), lastTabIndex+1, languageTable);
+		printf("removendo (%s, %ld)\n", aux[tabIndex].language, aux[tabIndex].byteOffset); 
+		printf("trocando por (%s, %ld)\n", aux[lastTabIndex].language, aux[lastTabIndex].byteOffset);
 		aux[tabIndex] = aux[lastTabIndex];
 		//realloc the size of the list, cropping the deleted item out
 		aux = realloc(aux, sizeOfTableFile - INDEXHEADER - sizeof(LANGITEM));
@@ -904,7 +936,7 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 			//sort it again
 			qsort(aux, lastTabIndex, sizeof(LANGITEM), compareLanguageItem);
 			//and write it back to the table index file
-			if(fwrite(aux, sizeOfTableFile, 1, languageTable)) goto RTFLI_EXIT;
+			if(fwrite(aux, sizeof(LANGITEM), lastTabIndex, languageTable)) goto RTFLI_EXIT;
 			//as we've finished removing the element, we update the table status to updated and return
 		}
 		fseek(languageTable, 0, SEEK_SET);
@@ -916,14 +948,18 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 		return 1;
 	}
 	//finding the item in the list file and removing it
+	long toUpdate;
 	do {
+		toUpdate = ftell(languageList) - sizeof(LANGLISTITEM);
+		if(fseek(languageList, current.next, SEEK_SET) != 0) goto RTFLI_EXIT;
 		previous = current;
-		if(fread(&current, sizeof(LANGLISTITEM), 1, languageTable) <= 0)
+		if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
 			goto RTFLI_EXIT;
-		if(fseek(languageList, current.fileOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	} while(current.fileOffset != offset || current.next != -1);
 
+	fseek(languageList, toUpdate, SEEK_SET);
 	previous.next = current.next;
+	fwrite(&previous, sizeof previous, 1, languageList);
 	//setting the table status to updated and returning
 	fseek(languageTable, 0, SEEK_SET);
 	tableStatus = UPDATED;
@@ -951,7 +987,7 @@ int removeTweet(char *filename, long offset) {
 	//getting the stack's head
 	long stackHead;
 	if(fread(&stackHead, HEADER, 1, file) <= 0) goto REMOVE_TWEET_EXIT;
-	
+
 	//tries to move til the deletion's offset
 	if(fseek(file, offset, SEEK_SET) != 0) goto REMOVE_TWEET_EXIT;
 
@@ -977,7 +1013,6 @@ int removeTweet(char *filename, long offset) {
 	//removing indexes from the indexes fieldSize
 	int langRet = removeTweetFromLanguageIndex(filename, removedTweet, offset);
 	int favRet = removeTweetFromFavoriteIndex(filename, removedTweet, offset);
-	printf("lang: %d, fav: %d\n", langRet, favRet);
 	if(!langRet || !favRet)
 		goto REMOVE_TWEET_EXIT;
 
