@@ -33,12 +33,6 @@ int binarySearch(										\
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		int index = (lim >> 1) * size;
 		p = base + index;
-		if (size == sizeof(LANGITEM)){
-			for (int i = 0; i < strlen(((LANGITEM*)p)->language); i++){
-			}
-			for (int i = 0; i < strlen(((LANGITEM*)key)->language); i++){
-			}
-		}
 		cmp = (*compar)(key, p);
 		if (cmp == 0)
 			return index/size;
@@ -639,6 +633,7 @@ generateIdxData:
 }
 
 static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
+	int i;
 	long ret = -1;
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
 	FILE *fileTab = fopen(favIdxTabFileName, "r");
@@ -662,7 +657,7 @@ static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 
 	FAVITEM key;
 	key.favoriteCount = favoriteCount;
-	for (int i = 0; i < nTweets; i++){
+	for (i = 0; i < nTweets; i++){
 	}
 	int found = binarySearch(&key, items, nTweets, sizeof(FAVITEM), compareFavoriteItem);
 	if (found == -1)
