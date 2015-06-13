@@ -375,7 +375,7 @@ void writeTweet(char *filename, TWEET *tw){
 
 	
 	int tweetsize = tweetSize(tweet);  //tamanho do tweet a ser inserido
-	long previousOffset, previusOffsetValue, byteOffset;
+	long previousOffset, byteOffset;
 	long stackHead = 0;
 	
 	char *datafilename = getDataFileName(filename); //nome do arquivo de dados
@@ -489,7 +489,6 @@ static char *readField(FILE *stream) {
 TWEET *readTweet(char *filename, long offset){
 	int size;
 	FILE *dataFile;
-	char buff;
 
 	TWEET *tw;
 
@@ -607,19 +606,19 @@ void generateIndexes(char *filename){
 	if (dataFile == NULL) return;
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
 	FILE *favIdxTabFile = fopen(dataFileName, "w+");
-	fclose(favIdxTabFile);
+	if (favIdxTabFile != NULL) fclose(favIdxTabFile);
 	free(favIdxTabFileName);
 	char *favIdxListFileName = getFavoriteListIndexFileName(filename);
 	FILE *favIdxListFile = fopen(dataFileName, "w+");
-	fclose(favIdxListFile);
+	if (favIdxListFile != NULL) fclose(favIdxListFile);
 	free(favIdxListFileName);
 	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
 	FILE *langIdxTabFile = fopen(dataFileName, "w+");
-	fclose(langIdxTabFile);
+	if (langIdxTabFile != NULL) fclose(langIdxTabFile);
 	free(langIdxTabFileName);
 	char *langIdxListFileName = getLanguageListIndexFileName(filename);
 	FILE *langIdxListFile = fopen(dataFileName, "w+");
-	fclose(langIdxListFile);
+	if (langIdxListFile != NULL) fclose(langIdxListFile);
 	free(langIdxListFileName);
 
 	long offset;
@@ -632,9 +631,6 @@ void generateIndexes(char *filename){
 			updateIndexFiles(current, offset, filename);
 		}
 	}
-
-generateIdxData:
-	fclose(dataFile);
 
 }
 
@@ -720,9 +716,11 @@ long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *fou
 	char *listFileName = getFavoriteListIndexFileName(filename);
 	FILE *fileList = fopen(listFileName, "r");
 	free(listFileName);
+	if (fileList == NULL) goto findFavRet;
 	char *tabFileName = getFavoriteTableIndexFileName(filename);
 	FILE *fileTab = fopen(tabFileName, "r");
 	free(tabFileName);
+	if (fileTab == NULL) goto findFavRetList;
 
 	long offset;
 	offset = findIndexOffsetByFavoriteCount(filename, favoriteCount);
@@ -734,11 +732,11 @@ long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *fou
 	FAVLISTITEM current;
 	do {
 		if (fread(&current, sizeof current, 1, fileList) <= 0)
-			goto findFavRetList;
+			goto findFavRetTab;
 		(*foundOccurences)++;
 		ret = realloc(ret, (sizeof current)*(*foundOccurences));
 		if (ret == NULL)
-			goto findFavRetList;
+			goto findFavRetTab;
 		ret[(*foundOccurences)-1] = current.fileOffset;
 		if (current.next > 0) fseek(fileList, current.next, SEEK_SET);
 	}while(current.next != -1);
