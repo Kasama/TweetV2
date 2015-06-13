@@ -1099,3 +1099,28 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 	}
 	return result;
 }
+
+long *match (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
+	size_t iv1, iv2;
+	long *result;
+	
+	iv1 = iv2 = 0;
+	*resultSize = 0;
+	
+	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
+		result = realloc(result, (*resultSize+1) * sizeof(long));	// Cria um espaço no vetor
+		
+		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
+			iv1++;	// Pega o próximo elemento de v1.
+		}
+		else if (v2[iv2] < v1[iv1]){	// Se elemento de v2 for menor...
+			iv2++;	// Pega o próximo elemento de v2.
+		}
+		else {	// Se o elemento de v1 == elemento de v2
+			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
+			iv2++;
+		}
+		*resultSize++;
+	}
+	return result;
+}
