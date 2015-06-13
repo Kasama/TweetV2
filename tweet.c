@@ -568,7 +568,8 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 
 	char * datafilename = getDataFileName(filename);
 	FILE *f = fopen(datafilename, "r");
-	if (f == NULL) goto OFFSERBYUSER_EXIT;
+
+	if (f == NULL) goto OFFSETBYUSER_EXIT;
 
 	TWEET *tt = NULL;
 	long offset = HEADER;		// Offset of the last begin of tweet
@@ -585,14 +586,14 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 				listOffset = realloc(listOffset, *foundOccurences);
 				listOffset[(*foundOccurences)-1] = offset;
 			}
-			free(tt);
+			destoryTweet(&tt);
 		}
 
 		offset += abs(nextTweet) + sizeof nextTweet;
 		fseek(f, offset, SEEK_SET);
 	}
 
-OFFSERBYUSER_EXIT:
+OFFSETBYUSER_EXIT:
 	if (f != NULL) fclose(f);
 	if(datafilename != NULL) free(datafilename);
 	return listOffset;
