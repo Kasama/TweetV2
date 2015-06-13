@@ -568,13 +568,9 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 
 	char * datafilename = getDataFileName(filename);
 	FILE *f = fopen(datafilename, "r");
-<<<<<<< HEAD
-	if (f == NULL) goto OFFSETBYUSER_EXIT;
-	
-=======
-	if (f == NULL) goto OFFSERBYUSER_EXIT;
 
->>>>>>> test-main
+	if (f == NULL) goto OFFSETBYUSER_EXIT;
+
 	TWEET *tt = NULL;
 	long offset = HEADER;		// Offset of the last begin of tweet
 	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
