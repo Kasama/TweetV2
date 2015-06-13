@@ -1053,3 +1053,49 @@ void destoryTweet (TWEET **tweet){
 	free(*tweet);
 	tweet = NULL;
 }
+
+long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
+	size_t iv1, iv2;
+	long *result, *over;
+	int i, end;
+	
+	iv1 = iv2 = 0;
+	*resultSize = 0;
+	
+	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
+		result = realloc(result, (*resultSize+1) * sizeof(long));	// Cria um espaço no vetor
+		
+		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
+			result[*resultSize] = v1[iv1++];	// Inclui ele no vetor.
+		}
+		else if (v2[iv2] < v1[iv1]){	// Se elemento de v2 for menor...
+			result[*resultSize] = v2[iv2++];	// Inclui ele no vetor.
+		}
+		else {	// Se o elemento de v1 == elemento de v2
+			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
+			iv2++;
+		}
+		*resultSize++;
+	}
+	
+	if (!(iv1 == sz_v1 && iv2 == sz_v2)) {	// Se ao menos um dos vetores ainda tem elementos:
+		if (iv1 == sz_v1){	// Se acabou os elementos de v1
+			over = v2;
+			i = iv2;
+			end = sz_v2;
+		}
+		else {	// Se acabou os elementos de v2
+			over = v1;
+			i = iv1;
+			end = sz_v1;
+		}
+		
+		result = realloc(result, (*resultSize + (end - i -1)));	// Cria espaço para os novos elementos
+		
+		for (i; i < end; i++){
+			result[*resultSize] = over[i];
+			*resultSize++;
+		}
+	}
+	return result;
+}
