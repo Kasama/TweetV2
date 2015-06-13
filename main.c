@@ -7,10 +7,12 @@
 
 int teste1();
 int teste2();
+int teste3();
 
 int main() {
 	teste1();
 	teste2();
+	teste3();
 	return 0;
 }
 
@@ -34,7 +36,7 @@ int teste1 (){
 	char * str3 = calloc(sizeof(char), 2);
 	
 	
-	TWEET * tt = newTweet("texto",
+	TWEET * tt = newTweet("texto2",
 		"usuario",
 		"4 8 15 S 16 23 42 O",
 		"PT-BR",
@@ -51,12 +53,41 @@ int teste1 (){
 	destoryTweet(&tt);
 	printf("\nTweet liberado *\n");
 	
-	tt = readTweet(FNAME, sizeof(long));
-	if (tt != NULL) { printf("\nTweet lido\n"); }
+	tt = newTweet("texto",
+		"usuario",
+		"4 8 15 S 16 23 42 O",
+		"PT-BR",
+		20,
+		15,
+		200);
+	if (tt != NULL) { printf("\nTweet criado\n\n"); }
 	
 	printTweet(tt);
-	destoryTweet(&tt);
 	
+	writeTweet(FNAME, tt);
+	printf("\n\nTweet escrito *\n");
+	
+	destoryTweet(&tt);
+	printf("\nTweet liberado *\n");
+
+	tt = newTweet("texto",
+		"usuario",
+		"4 8 15 S 16 23 42 O",
+		"EN-US",
+		10,
+		15,
+		200);
+	if (tt != NULL) { printf("\nTweet criado\n\n"); }
+	
+	printTweet(tt);
+	
+	writeTweet(FNAME, tt);
+	printf("\n\nTweet escrito *\n");
+	
+	destoryTweet(&tt);
+	printf("\nTweet liberado *\n");
+	
+	/*
 	for (i = 0; i < 50; i++){
 		printf("-- FOR %2d |", i);
 		sprintf(str0, "%d", rand());
@@ -75,6 +106,7 @@ int teste1 (){
 		destoryTweet(&tt);
 		printf("Destruiu\n");
 	}
+	*/
 	
 	free(str0);
 	free(str1);
@@ -88,14 +120,15 @@ int teste2 (){
 	long *offset, foundOccurences;
 	
 	// = = = = = Busca por Usuario = = = = =
-	printf("\nProcurando : findOffsetByUser : \"usuario\"\n");
 	foundOccurences = 0;
 	offset = NULL;
+	printf("\nProcurando : findOffsetByUser : \"usuario\"\n");
 	offset = findOffsetByUser(FNAME, "usuario", &foundOccurences);
+	printf("achou usuario\n");
 	printVector(offset, foundOccurences);
 	free(offset);
-	
-	printf("\nProcurando : findOffsetByUser : \"usuario\\31\"\n");
+
+	printf("\nProcurando : findOffsetByUser : \"usuario%c\"\n", END_FIELD);
 	foundOccurences = 0;
 	offset = NULL;
 	offset = findOffsetByUser(FNAME, "usuario\31", &foundOccurences);
@@ -132,18 +165,57 @@ int teste2 (){
 	printVector(offset, foundOccurences);
 	free(offset);
 	
-	printf("\nProcurando : findDataOffsetByLanguage : \"PT-BR\\31\"\n");
+	printf("\nProcurando : findDataOffsetByLanguage : \"PT-BR\\31\"(Falha)\n");
 	foundOccurences = 0;
 	offset = NULL;
 	offset = findDataOffsetByLanguage(FNAME, "PT-BR\31", &foundOccurences);
 	printVector(offset, foundOccurences);
 	free(offset);
 	
-	printf("\nProcurando : findDataOffsetByLanguage : \"EN-BR\\31\" (Falha)\n");
+	printf("\nProcurando : findDataOffsetByLanguage : \"EN-US\"\n");
 	foundOccurences = 0;
 	offset = NULL;
-	offset = findDataOffsetByLanguage(FNAME, "EN-BR\31", &foundOccurences);
+	offset = findDataOffsetByLanguage(FNAME, "EN-US", &foundOccurences);
 	printVector(offset, foundOccurences);
 	free(offset);
 	return 0;
+}
+
+int teste3(){
+
+	long *offset;
+	long foundOccurences = 0;
+	offset = NULL;
+	printf("\nProcurando : findOffsetByUser : \"usuario\"\n");
+	offset = findOffsetByUser(FNAME, "usuario", &foundOccurences);
+	printf("achou usuario\n");
+	removeTweet(FNAME, offset[0]);
+	free(offset);
+
+	TWEET *tt = newTweet("esse texto e muito grande para caber no tamanho que foi removido, acho que vai zoar o negocio",
+		"usuario",
+		"4 S 6 N",
+		"PT-BR",
+		10,
+		15,
+		30);
+	if (tt != NULL) { printf("\nTweet criado\n\n"); }
+	
+	printTweet(tt);
+	
+	writeTweet(FNAME, tt);
+	printf("\n\nTweet escrito *\n");
+	
+	destoryTweet(&tt);
+	printf("\nTweet liberado *\n");
+
+	foundOccurences = 0;
+	offset = NULL;
+	printf("\nProcurando : language : \"EN-US\"\n");
+	offset = findDataOffsetByLanguage(FNAME, "EN-US", &foundOccurences);
+	printf("achou usuario\n");
+	removeTweet(FNAME, offset[0]);
+	free(offset);
+
+
 }
