@@ -400,7 +400,6 @@ void writeTweet(char *filename, TWEET *tw){
 	}else{//existe espaço logicamente removido
 		byteOffset = bestFit(datafilename, tweetsize, &previousOffset); //byteoffset para a inserção do tweet
 		int fieldSize;
-		printf("best fit deve ter dado -1: %ld\n", byteOffset);
 		if(byteOffset == -1){ // nao tem onde colocar o registro. Append
 			if(fseek(arq, 0, SEEK_END) != 0) goto WRITETWEET_EXIT;
 			byteOffset = ftell(arq);
@@ -701,7 +700,6 @@ static long findIndexOffsetByLanguage(char *filename, char* language){
 	int len = strlen(language);
 	len = (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len;
 	strncpy(key.language, language, len);
-	//TODO ver issae
 	key.language[len] = 0;
 	int found = binarySearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
 	if (found == -1)
@@ -900,21 +898,17 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
 	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByLanguage(filename, removedTweet->language);
-	printf("achei a lang em %ld\n", tableOffset);
 	//getting the byteOffset for the item in the list index file
 	LANGITEM tableItem;
 	if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	if(fread(&tableItem, sizeof(LANGITEM), 1, languageTable) <= 0) goto RTFLI_EXIT;
 	//going to the list index file
 	LANGLISTITEM current, previous;
-	printf("offset no list: %s - %ld\n",tableItem.language, tableItem.byteOffset);
 	if(fseek(languageList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
 	if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
 		goto RTFLI_EXIT;
 	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
-	printf("current : (%ld,%ld)\n", current.fileOffset, current.next);
 	if(current.next == -1 && current.fileOffset == offset) {
-		printf("entrei aqui\n");
 		if(fseek(languageTable, 0, SEEK_END) != 0) goto RTFLI_EXIT;
 		long sizeOfTableFile = ftell(languageTable);
 		//we load the table index file to the memory
@@ -925,8 +919,6 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 		int lastTabIndex = ((sizeOfTableFile - INDEXHEADER)/sizeof(LANGITEM))-1;
 		fseek(languageTable, INDEXHEADER, SEEK_SET);
 		fread(aux, sizeof(LANGITEM), lastTabIndex+1, languageTable);
-		printf("removendo (%s, %ld)\n", aux[tabIndex].language, aux[tabIndex].byteOffset); 
-		printf("trocando por (%s, %ld)\n", aux[lastTabIndex].language, aux[lastTabIndex].byteOffset);
 		aux[tabIndex] = aux[lastTabIndex];
 		//realloc the size of the list, cropping the deleted item out
 		aux = realloc(aux, sizeOfTableFile - INDEXHEADER - sizeof(LANGITEM));
