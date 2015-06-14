@@ -33,12 +33,6 @@ int binarySearch(										\
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		int index = (lim >> 1) * size;
 		p = base + index;
-		if (size == sizeof(LANGITEM)){
-			for (int i = 0; i < strlen(((LANGITEM*)p)->language); i++){
-			}
-			for (int i = 0; i < strlen(((LANGITEM*)key)->language); i++){
-			}
-		}
 		cmp = (*compar)(key, p);
 		if (cmp == 0)
 			return index/size;
@@ -675,6 +669,7 @@ void generateIndexes(char *filename){
 }
 
 static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
+	int i;
 	long ret = -1;
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
 	FILE *fileTab = fopen(favIdxTabFileName, "r");
@@ -698,7 +693,7 @@ static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 
 	FAVITEM key;
 	key.favoriteCount = favoriteCount;
-	for (int i = 0; i < nTweets; i++){
+	for (i = 0; i < nTweets; i++){
 	}
 	int found = binarySearch(&key, items, nTweets, sizeof(FAVITEM), compareFavoriteItem);
 	if (found == -1)
@@ -1082,4 +1077,75 @@ void destroyTweet (TWEET **tweet){
 
 	free(*tweet);
 	tweet = NULL;
+}
+
+long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
+	size_t iv1, iv2;
+	long *result, *over;
+	int i, end;
+	
+	iv1 = iv2 = 0;
+	*resultSize = 0;
+	
+	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
+		result = realloc(result, (*resultSize+1) * sizeof(long));	// Cria um espaço no vetor
+		
+		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
+			result[*resultSize] = v1[iv1++];	// Inclui ele no vetor.
+		}
+		else if (v2[iv2] < v1[iv1]){	// Se elemento de v2 for menor...
+			result[*resultSize] = v2[iv2++];	// Inclui ele no vetor.
+		}
+		else {	// Se o elemento de v1 == elemento de v2
+			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
+			iv2++;
+		}
+		*resultSize++;
+	}
+	
+	if (!(iv1 == sz_v1 && iv2 == sz_v2)) {	// Se ao menos um dos vetores ainda tem elementos:
+		if (iv1 == sz_v1){	// Se acabou os elementos de v1
+			over = v2;
+			i = iv2;
+			end = sz_v2;
+		}
+		else {	// Se acabou os elementos de v2
+			over = v1;
+			i = iv1;
+			end = sz_v1;
+		}
+		
+		result = realloc(result, (*resultSize + (end - i -1)));	// Cria espaço para os novos elementos
+		
+		for (i; i < end; i++){
+			result[*resultSize] = over[i];
+			*resultSize++;
+		}
+	}
+	return result;
+}
+
+long *match (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
+	size_t iv1, iv2;
+	long *result;
+	
+	iv1 = iv2 = 0;
+	*resultSize = 0;
+	
+	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
+		result = realloc(result, (*resultSize+1) * sizeof(long));	// Cria um espaço no vetor
+		
+		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
+			iv1++;	// Pega o próximo elemento de v1.
+		}
+		else if (v2[iv2] < v1[iv1]){	// Se elemento de v2 for menor...
+			iv2++;	// Pega o próximo elemento de v2.
+		}
+		else {	// Se o elemento de v1 == elemento de v2
+			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
+			iv2++;
+		}
+		*resultSize++;
+	}
+	return result;
 }
