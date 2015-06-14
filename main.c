@@ -24,6 +24,8 @@
 #define CMD_REQUEST_ALL "all"
 #define CMD_REQUEST_FAVORITE "favorite"
 #define CMD_REQUEST_LANGUAGE "language"
+#define CMD_REQUEST_MERGE "merge"
+#define CMD_REQUEST_MATCH "match"
 #define CMD_REQUEST_USER "user"
 #define CMD_CREDITS "credits"
 #define CMD_LS "ls"
@@ -65,6 +67,21 @@ enum {
 
 };
 
+char *readField(FILE *stream, char end) {
+	char *buffer = NULL;
+	char character;
+	int counter = 0;
+
+	do {
+		character = fgetc(stream);
+		buffer = (char *) realloc(buffer, sizeof(char)
+				* (counter+1));
+		buffer[counter++] = character;
+	}while (character != end);
+	buffer[counter-1] = '\0';
+
+	return buffer;
+}
 /**
  * A function that recieves from the user the information to add to the file and calls
  * the function insertTweet, from the library implementation
@@ -82,27 +99,23 @@ enum {
  *
  */
 void cmdInsert(char *fileName){
-	char user[USER_SIZE];
-	char lang[LANGUAGE_SIZE];
-	char coords[COORDINATES_SIZE];
-	char text[TEXT_SIZE];
+	char *user;
+	char *lang;
+	char *coords;
+	char *text;
 	int fav, retweet, ret;
 	long view;
 
 	//request all information needed to insert a new tweet
 	printf("Please type a user name:\n");
 	scanf("\n"); //read a \n that is still in the buffer from the previous scanf
-	fgets(user, sizeof user, stdin);
-	user[strlen(user)-1] = 0; //fgets reads the \n to the string, so we need to remove it. Otherwise it would be inserted to the database
+	user = readField(stdin, '\n');
 	printf("Type your geographic coordinates:\n");
-	fgets(coords, sizeof coords, stdin);
-	coords[strlen(coords)-1] = 0;
+	coords = readField(stdin, '\n');
 	printf("Specify the language of your text:\n");
-	fgets(lang, sizeof lang, stdin);
-	lang[strlen(lang)-1] = 0;
+	lang = readField(stdin, '\n');
 	printf("Type your text:\n");
-	fgets(text, sizeof text, stdin);
-	text[strlen(text)-1] = 0;
+	text = readField(stdin, '\n');
 	printf("Type how many favorites your tweet has:\n");
 	scanf("%d", &fav);
 	printf("Type how many views your tweet has:\n");
@@ -110,15 +123,22 @@ void cmdInsert(char *fileName){
 	printf("Type how many retweets your tweet has:\n");
 	scanf("%d", &retweet);
 
+	TWEET* tweet = newTweet(text, user, coords, lang, fav, view, retweet);
+
 	// call the function that will insert the tweet into the database
-	ret = insertTweet(fileName, text, user, coords, fav, lang, retweet, view);
+	ret = writeTweet(fileName, tweet);
 
 	// check the return value and print a error message if needed
-	if(ret == SUCCESS){
+	if(ret == 1){
 		printf("Tweet inserted successfully!\n");
 	}else{
 		printf("Could not insert the tweet. Is the filesystem read only?\n");
 	}
+	free(text);
+	free(user);
+	free(coords);
+	free(lang);
+	destroyTweet(&tweet);
 }
 
 /**
@@ -139,7 +159,7 @@ void cmdRemove(char *fileName){
 	// call the function to remove the tweet using the RRN
 	ret = removeTweet(fileName, RRN);
 	// check the return value and print a error message if needed
-	if(ret == SUCCESS){
+	if(ret == 1){
 		printf("The Tweet %d was successfully removed\n", RRN);
 	}else{
 		printf("The Tweet %d could not be removed. Maybe it does not exist\n", RRN);
@@ -165,44 +185,52 @@ void cmdRemove(char *fileName){
 void cmdRequest(char *fileName){
 	TWEET **tweets = NULL;
 	TWEET *tweet = NULL;
-	char cmd[CMD_LENGTH], buf[10*CMD_LENGTH], *toPrint;
-	int RRN, ammount = 0, i;
+	char cmd[CMD_LENGTH], buf[10*CMD_LENGTH];
+	int favorite;
+	char *language;
+	long amount = 0;
+	long *offsets;
 
 	// reads the next part of the request command
 	scanf("%s", cmd); 
 	// a "switch" structure 
 	if(strcmp(cmd, CMD_REQUEST_ALL) == 0){
-		tweets = requestAllTweets(fileName, &ammount); // get a array of all tweets and the ammount of tweets
+		offsets = findAllTweets(fileName, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_USER) == 0){
 		scanf("%s", cmd); // reads the user to find for
-		tweets = findTweetByUser(fileName, cmd, &ammount); // get a array of all tweets from that user and the ammount of tweets
-	}else if(strcmp(cmd, CMD_REQUEST_RRN) == 0){
-		scanf("%d", &RRN); // reads the RRN to request from
-		tweet = requestTweet(fileName, RRN); // get a tweet
+		offsets = findOffsetByUser(fileName, cmd, &amount);
+	}else if(strcmp(cmd, CMD_REQUEST_FAVORITE) == 0){
+		scanf("%d", &favorite); // reads the RRN to request from
+		offsets = findDataOffsetByFavoriteCount(fileName, favorite, &amount);
+	}else if(strcmp(cmd, CMD_REQUEST_LANGUAGE) == 0){
+		language = readField(stdin, '\n');
+		offsets = findDataOffsetByLanguage(fileName, language, &amount);
+	}else if(strcmp(cmd, CMD_REQUEST_MERGE) == 0){
+		scanf("%d", &favorite);
+		language = readField(stdin, '\n');
+
+	}else if(strcmp(cmd, CMD_REQUEST_MATCH) == 0){
+		scanf("%d", &favorite);
+		language = readField(stdin, '\n');
+
 	}else{
 		fgets(buf, sizeof buf, stdin); // if the command is invalid, consume the stdin buffer
 		buf[strlen(buf)-1] = 0; // as fgets adds the \n to the buffer, we remove it
 		printf("Invalid command: %s%s, try typing '%s' for help\n", cmd, buf, CMD_HELP); // says that the command is not valid
 	}
 
-	if(tweets == NULL && tweet == NULL){ // if no tweets were found, print a error message
+	if(offsets == NULL){ // if no tweets were found, print a error message
 		printf("Could not find requested Tweet(s). Maybe it does not exist\n");
 	}else{
-		if(tweet == NULL){ // check if the ran command returned a array of tweets or a single one
-			for(i = 0; i < ammount; i++){ // print the array of tweets
-				toPrint = printTweet(tweets[i], fileName);
-				printf("%s", toPrint);
-				printf("---------------------------------------------------\n");
-				free(toPrint);
-				free(tweets[i]); // free every tweet
+		for (int i = 0; i < amount; i++){
+			TWEET *tt;
+			tt = readTweet(fileName, offsets[i]);
+			printTweet(tt);
+			destroyTweet(&tt);
+			if (i+1 < amount){
+				printf("------------------------- Press any key to see next tweet\n"); 
+				getchar();
 			}
-			free(tweets); // free the base structure
-		}else{
-			toPrint = printTweet(tweet, fileName);
-			printf("%s", toPrint);
-			printf("---------------------------------------------------\n");
-			free(toPrint);
-			free(tweet); // free that tweet
 		}
 	}
 }
@@ -239,10 +267,13 @@ void cmdHelp(char *progname){
 	printf("%s\t\t\t- print this help\n", CMD_HELP);
 	printf("%s\t\t\t- print the credits\n", CMD_CREDITS);
 	printf("%s\t\t\t- insert a tweet into the database (You will be prompted asking for the information to store)\n", CMD_INSERT);
-	printf("%s <RRN>\t\t- remove a tweet from the database using it's ID(RRN)\n", CMD_REMOVE);
+	printf("%s <Favorites>\t\t- remove a tweet from the database using the number of favorites it has\n", CMD_REMOVE);
 	printf("%s %s\t\t- print all tweets in the database\n", CMD_REQUEST, CMD_REQUEST_ALL);
 	printf("%s %s <UserName>\t- print all tweets of the user <UserName>\n", CMD_REQUEST, CMD_REQUEST_USER);
-	printf("%s %s <RRN>\t- print a single tweet using its ID (RRN)\n", CMD_REQUEST, CMD_REQUEST_RRN);
+	printf("%s %s <Favorites>\t- print all tweets that have the specified number of favorites\n", CMD_REQUEST, CMD_REQUEST_FAVORITE);
+	printf("%s %s <Language>\t- print all tweets that have the specified language\n", CMD_REQUEST, CMD_REQUEST_LANGUAGE);
+	printf("%s %s <Favorites> <Language>\t- print all tweets that have the specified number of favorites AND the specified language\n", CMD_REQUEST, CMD_REQUEST_MATCH);
+	printf("%s %s <Favorites> <Language>\t- print all tweets that have the specified number of favorites OR the specified language\n", CMD_REQUEST, CMD_REQUEST_MERGE);
 	printf("%s <fileName>\t\t- change the data file to the specified one\n", CMD_CHANGE_DATAFILE);
 	printf("%s\t\t\t- list all files in current directory\n", CMD_LS);
 	printf("%s\t\t\t- change the current directory\n", CMD_CD);
@@ -397,4 +428,4 @@ int main(int argc, char *argv[]){
 	}
 
 	return 0;
-}
+	}
