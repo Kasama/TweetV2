@@ -63,7 +63,7 @@ TWEET *newTweet(				\
  *
  */
 // Fred
-void writeTweet(char *filename, TWEET *tweet);
+int writeTweet(char *filename, TWEET *tweet);
 
 /*
  * Reads a tweet from byteoffset
@@ -73,6 +73,11 @@ void writeTweet(char *filename, TWEET *tweet);
  */
 // Kike
 TWEET *readTweet(char *filename, long offset);
+
+/*
+ * sequential search by user in the register file
+ */
+long *findAllTweets(char *filename, long *foundOccurences);
 
 /*
  * sequential search by user in the register file
@@ -102,6 +107,6 @@ int removeTweet(char *filename, long offset);
 // Crocomo
 void printTweet(TWEET *tweet);
 
-void destoryTweet (TWEET **tweet);
+void destroyTweet (TWEET **tweet);
 
 #endif

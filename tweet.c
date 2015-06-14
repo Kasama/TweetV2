@@ -344,8 +344,8 @@ static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
 	free(table);
 }
 
-void writeTweet(char *filename, TWEET *tw){
-	if(filename == NULL || tw == NULL) return;
+int writeTweet(char *filename, TWEET *tw){
+	if(filename == NULL || tw == NULL) return 0;
 
 	TWEET *tweet;
 	tweet = malloc(sizeof(TWEET));
@@ -382,7 +382,7 @@ void writeTweet(char *filename, TWEET *tw){
 	FILE *arq = fopen(datafilename, "a");
 	arq = freopen(datafilename, "r+", arq);
 
-	if(arq == NULL) return;
+	if(arq == NULL) return 0;
 	fseek(arq, 0, SEEK_END);
 	if(ftell(arq) == 0){
 		stackHead = -1;
@@ -434,10 +434,16 @@ void writeTweet(char *filename, TWEET *tw){
 	//atualizando os indices
 	updateIndexFiles(tweet, byteOffset, filename);
 
+	if(arq != NULL) fclose(arq);
+	if(datafilename != NULL) free(datafilename);
+	if(tweet != NULL) free(tweet);
+	return 1;
+
 WRITETWEET_EXIT:
 	if(arq != NULL) fclose(arq);
 	if(datafilename != NULL) free(datafilename);
 	if(tweet != NULL) free(tweet);
+	return 0;
 
 }
 
@@ -453,10 +459,10 @@ TWEET *newTweet(				\
 	TWEET *tw;
 	tw = malloc(sizeof(TWEET));
 
-	tw->text = malloc((strlen(text)));
-	tw->userName = malloc((strlen(userName)));
-	tw->coords = malloc((strlen(coords)));
-	tw->language = malloc((strlen(language)));
+	tw->text = malloc((strlen(text)+1));
+	tw->userName = malloc((strlen(userName)+1));
+	tw->coords = malloc((strlen(coords)+1));
+	tw->language = malloc((strlen(language)+1));
 
 	strcpy(tw->text, text);
 	strcpy(tw->userName, userName);
@@ -560,6 +566,40 @@ static char *getFavoriteListIndexFileName(char *filename){
 	return file;
 }
 
+long *findAllTweets(char *filename, long *foundOccurences){
+	*foundOccurences = 0;
+	long *listOffset = NULL;
+
+	char * datafilename = getDataFileName(filename);
+	FILE *f = fopen(datafilename, "r");
+
+	if (f == NULL) goto FINDALLTWEETS_EXIT;
+
+	TWEET *tt = NULL;
+	long offset = HEADER;		// Offset of the last begin of tweet
+	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
+
+	fseek(f, offset, SEEK_SET);
+	while(fread(&nextTweet, 
+				sizeof nextTweet, 1, f) > 0 ) {
+		if (nextTweet > 0){
+			tt = readTweet(filename, offset);
+			(*foundOccurences)++;
+			listOffset = realloc(listOffset, *foundOccurences);
+			listOffset[(*foundOccurences)-1] = offset;
+			destroyTweet(&tt);
+		}
+
+		offset += abs(nextTweet) + sizeof nextTweet;
+		fseek(f, offset, SEEK_SET);
+	}
+
+FINDALLTWEETS_EXIT:
+	if (f != NULL) fclose(f);
+	if(datafilename != NULL) free(datafilename);
+	return listOffset;
+}
+
 long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	*foundOccurences = 0;
 	long *listOffset = NULL;
@@ -584,7 +624,7 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 				listOffset = realloc(listOffset, *foundOccurences);
 				listOffset[(*foundOccurences)-1] = offset;
 			}
-			destoryTweet(&tt);
+			destroyTweet(&tt);
 		}
 
 		offset += abs(nextTweet) + sizeof nextTweet;
@@ -1031,7 +1071,7 @@ void printTweet(TWEET *tweet){
 	return;
 }
 
-void destoryTweet (TWEET **tweet){
+void destroyTweet (TWEET **tweet){
 	if(tweet == NULL || *tweet == NULL)
 		return;
 
