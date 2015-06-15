@@ -1166,6 +1166,7 @@ REMOVE_TWEET_EXIT:
 	return 0;
 }
 
+// prints the specified tweet
 void printTweet(TWEET *tweet){
 	if(tweet == NULL) return;
 
