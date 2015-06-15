@@ -228,7 +228,6 @@ void cmdRequest(char *fileName){
 		scanf("%d", &favorite); // reads the RRN to request from
 		offsets = findDataOffsetByFavoriteCount(fileName, favorite, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_LANGUAGE) == 0){
-		scanf(" ");
 		language = readField(stdin, '\n');
 		offsets = findDataOffsetByLanguage(fileName, language, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_MERGE) == 0){
