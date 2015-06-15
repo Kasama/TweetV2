@@ -278,7 +278,7 @@ static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet,
 
 	fread(favVector, sizeof(FAVITEM), size, indexTable);
 
-	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(FAVITEM), compareLanguageItem);	
+	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(FAVITEM), compareFavoriteItem);	
 	int found = index;
 
 	if(found == -1){
