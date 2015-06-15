@@ -477,48 +477,48 @@ static char *readField(FILE *stream) {
 }
 
 TWEET *readTweet(char *filename, long offset){
-	int size;
 	FILE *dataFile;
+	TWEET *tw = malloc(sizeof(TWEET));
+	if(tw == NULL) return NULL;
 
-	TWEET *tw;
+	//gets the data file name and opens it
+	char *datafilename = getDataFileName(filename);
+	if(datafilename == NULL) return NULL;
 
-	tw = malloc(sizeof(TWEET));
-
-	char * datafilename = getDataFileName(filename);
 	dataFile = fopen(datafilename, "r");
+	if(dataFile == NULL) return NULL;
 
-	if (dataFile == NULL) {
-		return NULL;
-	}
+	if(fseek(dataFile, offset, SEEK_SET) != 0) return NULL;
 
-	if (fseek(dataFile, offset, SEEK_SET) != 0) {
-		return NULL;
-	}
+	int size;
+	if(fread(&size, sizeof(int), 1, dataFile) <= 0) return NULL;
 
-	fread(&size, sizeof(int), 1, dataFile);
-
-	if (size < 0) {
-		return NULL;
-	}
-
+	if (size < 0) return NULL;
+	
 	void *dataRaw;
 	dataRaw = malloc(size);
-	if (dataRaw == NULL) return NULL;
+	if(dataRaw == NULL) return NULL;
 
-	fread(dataRaw, size, 1, dataFile);
+	//loading the tweet to memory
+	if(fread(dataRaw, size, 1, dataFile) <= 0) return NULL;
 
+	//creates a memory buffer
 	FILE *mem;
 	mem = fmemopen(dataRaw, size, "r");
+	if(mem == NULL) return NULL;
 
+	//loading the tweet fields
 	tw->text = readField(mem);
 	tw->userName = readField(mem);
 	tw->coords = readField(mem);
 	tw->language = readField(mem);
-	fread(&(tw->favoriteCount), sizeof(int), 1, mem); 
-	fread(&(tw->retweetCount), sizeof(int), 1, mem); 
-	fread(&(tw->viewsCount), sizeof(long), 1, mem);
+	if(fread(&(tw->favoriteCount), sizeof(int), 1, mem) <= 0) return NULL; 
+	if(fread(&(tw->retweetCount), sizeof(int), 1, mem) <= 0) return NULL; 
+	if(fread(&(tw->viewsCount), sizeof(long), 1, mem) <= 0) return NULL;
 
-	if(datafilename != NULL) free(datafilename);
+	free(datafilename);
+	
+	//returning it
 	return tw; 
 }
 
