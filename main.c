@@ -8,11 +8,13 @@
 int teste1();
 int teste2();
 int teste3();
+int teste4();
 
 int main() {
-	teste1();
-	teste2();
-	teste3();
+	//teste1();
+	//teste2();
+	//teste3();
+	teste4();
 	return 0;
 }
 
@@ -217,5 +219,46 @@ int teste3(){
 	removeTweet(FNAME, offset[0]);
 	free(offset);
 
+
+}
+
+int teste4(){
+
+	TWEET *tt = newTweet(
+		"texto",
+		"user",
+		"4 S 6 N",
+		"pt-br",
+		10,
+		15,
+		30);
+	writeTweet(FNAME, tt);
+	destoryTweet(&tt);
+	tt = newTweet(
+		"texto",
+		"user",
+		"4 S 6 N",
+		"en-us",
+		20,
+		15,
+		30);
+	writeTweet(FNAME, tt);
+	destoryTweet(&tt);
+	tt = newTweet(
+		"hu3",
+		"croquitos",
+		"4 S 6 N",
+		"pt-br",
+		10,
+		15,
+		30);
+	writeTweet(FNAME, tt);
+	destoryTweet(&tt);
+
+	long *offsets;
+	long amount;
+
+	offsets = findDataOffsetByFavoriteCount(FNAME, 10, &amount);
+	removeTweet(FNAME, offsets[0]);
 
 }
