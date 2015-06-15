@@ -496,48 +496,48 @@ static char *readField(FILE *stream) {
 }
 
 TWEET *readTweet(char *filename, long offset){
-	int size;
 	FILE *dataFile;
+	TWEET *tw = malloc(sizeof(TWEET));
+	if(tw == NULL) return NULL;
 
-	TWEET *tw;
+	//gets the data file name and opens it
+	char *datafilename = getDataFileName(filename);
+	if(datafilename == NULL) return NULL;
 
-	tw = malloc(sizeof(TWEET));
-
-	char * datafilename = getDataFileName(filename);
 	dataFile = fopen(datafilename, "r");
+	if(dataFile == NULL) return NULL;
 
-	if (dataFile == NULL) {
-		return NULL;
-	}
+	if(fseek(dataFile, offset, SEEK_SET) != 0) return NULL;
 
-	if (fseek(dataFile, offset, SEEK_SET) != 0) {
-		return NULL;
-	}
+	int size;
+	if(fread(&size, sizeof(int), 1, dataFile) <= 0) return NULL;
 
-	fread(&size, sizeof(int), 1, dataFile);
-
-	if (size < 0) {
-		return NULL;
-	}
-
+	if (size < 0) return NULL;
+	
 	void *dataRaw;
 	dataRaw = malloc(size);
-	if (dataRaw == NULL) return NULL;
+	if(dataRaw == NULL) return NULL;
 
-	fread(dataRaw, size, 1, dataFile);
+	//loading the tweet to memory
+	if(fread(dataRaw, size, 1, dataFile) <= 0) return NULL;
 
+	//creates a memory buffer
 	FILE *mem;
 	mem = fmemopen(dataRaw, size, "r");
+	if(mem == NULL) return NULL;
 
+	//loading the tweet fields
 	tw->text = readField(mem);
 	tw->userName = readField(mem);
 	tw->coords = readField(mem);
 	tw->language = readField(mem);
-	fread(&(tw->favoriteCount), sizeof(int), 1, mem); 
-	fread(&(tw->retweetCount), sizeof(int), 1, mem); 
-	fread(&(tw->viewsCount), sizeof(long), 1, mem);
+	if(fread(&(tw->favoriteCount), sizeof(int), 1, mem) <= 0) return NULL; 
+	if(fread(&(tw->retweetCount), sizeof(int), 1, mem) <= 0) return NULL; 
+	if(fread(&(tw->viewsCount), sizeof(long), 1, mem) <= 0) return NULL;
 
-	if(datafilename != NULL) free(datafilename);
+	free(datafilename);
+	
+	//returning it
 	return tw; 
 }
 
@@ -611,30 +611,39 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	*foundOccurences = 0;
 	long *listOffset = NULL;
 
-	char * datafilename = getDataFileName(filename);
+	char *datafilename = getDataFileName(filename);
+	if(datafilename == NULL) return NULL;
+	
 	FILE *f = fopen(datafilename, "r");
-
 	if (f == NULL) goto OFFSETBYUSER_EXIT;
 
 	TWEET *tt = NULL;
 	long offset = HEADER;		// Offset of the last begin of tweet
 	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
 
+	//goes to the beginning of the tweets in the data file
 	fseek(f, offset, SEEK_SET);
+	//while tweets exist
 	while(fread(&nextTweet, 
 				sizeof nextTweet, 1, f) > 0 ) {
 		if (nextTweet > 0){
+			//loads the tweet
 			tt = readTweet(filename, offset);
+			if(tt == NULL) return NULL;
+			//if there is a match by user
 			int cmp = strcmp(username, tt->userName);
 			if (cmp == 0) {
+				//increase the size of listOffset vector and adds the offset to its end
 				(*foundOccurences)++;
 				listOffset = realloc(listOffset, *foundOccurences);
 				listOffset[(*foundOccurences)-1] = offset;
 			}
+			//frees the tweet
 			destroyTweet(&tt);
 		}
-
+		//updates offset to the next tweet
 		offset += abs(nextTweet) + sizeof nextTweet;
+		//goes to the next tweet
 		fseek(f, offset, SEEK_SET);
 	}
 
