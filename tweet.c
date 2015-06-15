@@ -848,28 +848,35 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	FILE *favoriteTable = fopen(tableFileName, "r+");
 	FILE *favoriteList  = fopen(listFileName,  "r+");
 	if(favoriteTable == NULL || favoriteList == NULL || removedTweet == NULL) return 0;
+	printf("1\n");
 
 	//marking table status as not updated
 	int tableStatus = !UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+	printf("2\n");
 	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByFavoriteCount(filename, removedTweet->favoriteCount);
 	//getting the byteOffset for the item in the list index file
 	FAVITEM tableItem;
 	if(fseek(favoriteTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(&tableItem, sizeof(FAVITEM), 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+	printf("3\n");
 	//going to the list index file 
 	FAVLISTITEM current, previous;
 	if(fseek(favoriteList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
+	printf("4\n");
 	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
 		goto RTFFI_EXIT;
+	printf("5\n");
 	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
 	if(current.next == -1 && current.fileOffset == offset) {
 		if(fseek(favoriteTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
+	printf("6\n");
 		long sizeOfTableFile = ftell(favoriteTable);
 		//we load the table index file to the memory
 		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile - INDEXHEADER);
 		if (aux == NULL) goto RTFFI_EXIT;
+	printf("7\n");
 		//swap the last item in the list with the one to be removed
 		int tabIndex = (tableOffset - INDEXHEADER)/sizeof(FAVITEM);
 		int lastTabIndex = (sizeOfTableFile - INDEXHEADER)/sizeof(FAVITEM);
@@ -883,11 +890,13 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 			qsort(aux, lastTabIndex, sizeof(FAVITEM), compareFavoriteItem);
 			//and write it back to the file
 			if(fwrite(aux, sizeOfTableFile, 1, favoriteTable)) goto RTFFI_EXIT;
+	printf("8\n");
 			//as we've finished removing the element, we update the table status to updated and return
 		}
 		fseek(favoriteTable, 0, SEEK_SET);
 		tableStatus = UPDATED;
 		if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+	printf("9\n");
 		free(aux);
 		fclose(favoriteTable);
 		fclose(favoriteList);
@@ -897,11 +906,15 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	long toUpdate;
 	do {
 		toUpdate = ftell(favoriteList) - sizeof(FAVLISTITEM);
+		printf("falhou no fseek offset: %ld\n", current.next);
 		if(fseek(favoriteList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
+	printf("10\n");
 		previous = current;
 		if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
 			goto RTFFI_EXIT;
-	} while(current.fileOffset != offset || current.next != -1);
+	printf("11\n");
+	} while(current.fileOffset != offset && current.next != -1);
+	printf("sai do while\n");
 
 	fseek(favoriteList, toUpdate, SEEK_SET);
 	previous.next = current.next;
@@ -910,6 +923,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	fseek(favoriteTable, 0, SEEK_SET);
 	tableStatus = UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+	printf("12\n");
 	fclose(favoriteTable);
 	fclose(favoriteList);
 	return 1;
@@ -981,7 +995,7 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 		previous = current;
 		if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
 			goto RTFLI_EXIT;
-	} while(current.fileOffset != offset || current.next != -1);
+	} while(current.fileOffset != offset && current.next != -1);
 
 	fseek(languageList, toUpdate, SEEK_SET);
 	previous.next = current.next;
