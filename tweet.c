@@ -107,16 +107,19 @@ int compareFavoriteItem(const void* o1, const void* o2){
 		return 1;
 }
 
+//returns the best removed speca to insert a new tweet
 static long bestFit(char* filename, long tweetSize, long *minPreviousOffset){
 
 	long offset, stackPos, currentPreviousOffset;
 	int currentDifference, minDifference, blockSize;
 	*minPreviousOffset = 0;
 
+	//opening file ro read
 	FILE *arq = fopen(filename, "r");
 	if(arq == NULL)
 		return -1;
 
+	//reading stack head
 	if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
 
 	if(stackPos <= 0){
@@ -125,23 +128,25 @@ static long bestFit(char* filename, long tweetSize, long *minPreviousOffset){
 		return -1;
 	}
 
+	//initializing variables
 	minDifference = INT_MAX;
 	currentPreviousOffset = -1;
 	offset = -1;
-	while(stackPos != -1 && minDifference > 0){
-		if(fseek(arq, stackPos, SEEK_SET) != 0) goto BESTFIT_ERROR;
+
+	while(stackPos != -1 && minDifference > 0){//while we have a next stack element and the diference betwen removed space and tweet size is positive...
+		if(fseek(arq, stackPos, SEEK_SET) != 0) goto BESTFIT_ERROR;//read stack pos
 
 		if(fread(&blockSize, sizeof(int), 1, arq) <= 0) goto BESTFIT_ERROR;
-		blockSize = abs(blockSize);
-		currentDifference = blockSize - tweetSize;
+		blockSize = abs(blockSize);//gives a positive value to field size
+		currentDifference = blockSize - tweetSize; //calculate the current diference
 
-		if(currentDifference >= 0 && currentDifference < minDifference){
-			minDifference = currentDifference;
+		if(currentDifference >= 0 && currentDifference < minDifference){//if the diference is less than the minor difference and is positive
+			minDifference = currentDifference;//update values
 			*minPreviousOffset = currentPreviousOffset;
 			offset = stackPos;
 		}
-		currentPreviousOffset = stackPos;	
-		if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;
+		currentPreviousOffset = stackPos;//setting current previus offset to stack pos, before we chance it	
+		if(fread(&stackPos, sizeof(long), 1, arq) <= 0) goto BESTFIT_ERROR;//read the next stack pos
 	}
 
 BESTFIT_ERROR:
