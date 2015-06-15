@@ -774,6 +774,7 @@ findFavRet:
 	return ret;
 }
 
+// Find all data offsets with certain language
 long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccurences){
 	*foundOccurences = 0;
 	long *ret = NULL;
@@ -832,7 +833,9 @@ findLangRet:
 	return ret;
 }
 
+// Remove Tweet from language index files
 static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, long offset) {
+	// Getting the proper filename and open files
 	char *tableFileName = getFavoriteTableIndexFileName(filename);
 	char *listFileName  = getFavoriteListIndexFileName(filename);
 	FILE *favoriteTable = fopen(tableFileName, "r+");
@@ -843,59 +846,79 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	int tableStatus = !UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteList) <= 0) goto RTFFI_EXIT;
+
 	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByFavoriteCount(filename, removedTweet->favoriteCount);
+
 	//getting the byteOffset for the item in the list index file
 	FAVITEM tableItem;
 	if(fseek(favoriteTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(&tableItem, sizeof(FAVITEM), 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+
 	//going to the list index file 
 	FAVLISTITEM current, previous;
 	if(fseek(favoriteList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
-	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
-		goto RTFFI_EXIT;
+	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0) goto RTFFI_EXIT;
+
+	// IF the current item is the first or only element in stack
 	if(current.next == -1 || current.fileOffset == offset){
-		tableItem.byteOffset = current.next;
-		if (tableItem.byteOffset == -1){
+		tableItem.byteOffset = current.next;	// Points to the next element (or "-1" if it is the only)
+
+		if (tableItem.byteOffset == -1){	// IF it is the only element...
 			FAVITEM *table;
+
+			// Get the size of file (without header)
 			if(fseek(favoriteTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
 			long tableSize = ftell(favoriteTable) - INDEXHEADER;
+
+			// Goes to first element in table File and load it to memory
 			if(fseek(favoriteTable, INDEXHEADER, SEEK_SET) != 0) goto RTFFI_EXIT;
 			table = malloc(tableSize);
 			if(table == NULL) goto RTFFI_EXIT;
 			int nItems = tableSize/sizeof(FAVITEM);
 			if(fread(table, sizeof(FAVITEM), nItems, favoriteTable) <= 0) goto RTFFI_EXIT;
+
+			// Find the item to remove (the index in *table)
 			int toRemoveIndex = (tableOffset - INDEXHEADER)/sizeof(FAVITEM);
-			table[toRemoveIndex] = table[nItems-1];
-			nItems--;
+			table[toRemoveIndex] = table[nItems-1];	// table[removedItem] = table[lastItem]
+			nItems--;	// Decrease size of *table
+
+			// Re-write table file
 			favoriteTable = freopen(tableFileName,"w+",favoriteTable);
 			if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-			if (nItems != 0){
+			if (nItems != 0){	// Sort the vector if its greater than zero
 				qsort(table, nItems, sizeof(FAVITEM), compareFavoriteItem);
 				if(fwrite(table, sizeof(FAVITEM), nItems, favoriteTable) <= 0) goto RTFFI_EXIT;
 			}
-		}else{
+
+		}else{	// IF it has more than one element, re-write the table File
 			if(fseek(favoriteTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 			if(fwrite(&tableItem, sizeof tableItem, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 		}
-	}else{
+	}else{	// IF the current item IS NOT the first NOR only element in stack
 		long toUpdate;
-		do {
+
+		do {	// Search the element to be removed in index list file
 			previous = current;
 			toUpdate = ftell(favoriteList) - sizeof(FAVLISTITEM);
 			if(fseek(favoriteList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
 			if(fread(&current, sizeof current, 1, favoriteList) <= 0) goto RTFFI_EXIT;
 		}while(current.fileOffset != offset || current.next != -1);
+
+		// Remove logically the element in list by changing pointers
 		previous.next = current.next;
 		if(fseek(favoriteList, toUpdate, SEEK_SET) != 0) goto RTFFI_EXIT;
 		if(fwrite(&previous, sizeof previous, 1, favoriteList) <= 0) goto RTFFI_EXIT;
 	}
+
+	// Update the status
 	if(fseek(favoriteTable, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fseek(favoriteList, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
 	tableStatus = !tableStatus;
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteList) <= 0) goto RTFFI_EXIT;
 
+	// Close files
 	fclose(favoriteTable);
 	fclose(favoriteList);
 	return 1;
@@ -906,7 +929,9 @@ RTFFI_EXIT:
 	return 0;
 }
 
+// Remove Tweet from language index files
 static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, long offset) {
+	// Getting the proper filename and open files
 	char *tableFileName = getLanguageTableIndexFileName(filename);
 	char *listFileName  = getLanguageListIndexFileName(filename);
 	FILE *languageTable = fopen(tableFileName, "r+");
@@ -917,59 +942,80 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	int tableStatus = !UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFFI_EXIT;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, languageList) <= 0) goto RTFFI_EXIT;
+
 	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByLanguage(filename, removedTweet->language);
+
 	//getting the byteOffset for the item in the list index file
 	LANGITEM tableItem;
 	if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(&tableItem, sizeof(LANGITEM), 1, languageTable) <= 0) goto RTFFI_EXIT;
+
 	//going to the list index file 
 	LANGLISTITEM current, previous;
 	if(fseek(languageList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
-	if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
-		goto RTFFI_EXIT;
+	if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0) goto RTFFI_EXIT;
+
+	// IF the current item is the first or only element in stack
 	if(current.next == -1 || current.fileOffset == offset){
-		tableItem.byteOffset = current.next;
-		if (tableItem.byteOffset == -1){
+		tableItem.byteOffset = current.next;	// Points to the next element (or "-1" if it is the only)
+
+		if (tableItem.byteOffset == -1){	// IF it is the only element...
 			LANGITEM *table;
+
+			// Get the size of file (without header)
 			if(fseek(languageTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
 			long tableSize = ftell(languageTable) - INDEXHEADER;
+
+			// Goes to first element in table File and load it to memory
 			if(fseek(languageTable, INDEXHEADER, SEEK_SET) != 0) goto RTFFI_EXIT;
 			table = malloc(tableSize);
 			if(table == NULL) goto RTFFI_EXIT;
 			int nItems = tableSize/sizeof(LANGITEM);
 			if(fread(table, sizeof(LANGITEM), nItems, languageTable) <= 0) goto RTFFI_EXIT;
+
+			// Find the item to remove (the index in *table)
 			int toRemoveIndex = (tableOffset - INDEXHEADER)/sizeof(LANGITEM);
-			table[toRemoveIndex] = table[nItems-1];
-			nItems--;
+			table[toRemoveIndex] = table[nItems-1];	// table[removedItem] = table[lastItem]
+			nItems--;	// Decrease size of *table
+
+			// Re-write table file
 			languageTable = freopen(tableFileName,"w+",languageTable);
 			if(fwrite(&tableStatus, sizeof tableStatus, 1, languageTable) <= 0) goto RTFFI_EXIT;
-			if (nItems != 0){
+			if (nItems != 0){	// Sort the vector if its greater than zero
 				qsort(table, nItems, sizeof(LANGITEM), compareLanguageItem);
 				if(fwrite(table, sizeof(LANGITEM), nItems, languageTable) <= 0) goto RTFFI_EXIT;
 			}
-		}else{
+
+		}else{	// IF it has more than one element, re-write the table File
 			if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 			if(fwrite(&tableItem, sizeof tableItem, 1, languageTable) <= 0) goto RTFFI_EXIT;
 		}
-	}else{
+
+	}else{	// IF the current item IS NOT the first NOR only element in stack
 		long toUpdate;
-		do {
+
+		do {	// Search the element to be removed in index list file
 			previous = current;
 			toUpdate = ftell(languageList) - sizeof(LANGLISTITEM);
 			if(fseek(languageList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
 			if(fread(&current, sizeof current, 1, languageList) <= 0) goto RTFFI_EXIT;
 		}while(current.fileOffset != offset || current.next != -1);
+
+		// Remove logically the element in list by changing pointers
 		previous.next = current.next;
 		if(fseek(languageList, toUpdate, SEEK_SET) != 0) goto RTFFI_EXIT;
 		if(fwrite(&previous, sizeof previous, 1, languageList) <= 0) goto RTFFI_EXIT;
 	}
+
+	// Update the status
 	if(fseek(languageTable, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fseek(languageList, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
 	tableStatus = !tableStatus;
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, languageTable) <= 0) goto RTFFI_EXIT;
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, languageList) <= 0) goto RTFFI_EXIT;
 
+	// Close files
 	fclose(languageTable);
 	fclose(languageList);
 	return 1;
@@ -1030,7 +1076,6 @@ REMOVE_TWEET_EXIT:
 	return 0;
 }
 
-
 void printTweet(TWEET *tweet){
 	if(tweet == NULL) return;
 
@@ -1046,6 +1091,7 @@ void printTweet(TWEET *tweet){
 	return;
 }
 
+// Free the vector
 void destroyTweet (TWEET **tweet){
 	if(tweet == NULL || *tweet == NULL)
 		return;
