@@ -588,30 +588,39 @@ long *findOffsetByUser(char *filename, char *username, long *foundOccurences){
 	*foundOccurences = 0;
 	long *listOffset = NULL;
 
-	char * datafilename = getDataFileName(filename);
+	char *datafilename = getDataFileName(filename);
+	if(datafilename == NULL) return NULL;
+	
 	FILE *f = fopen(datafilename, "r");
-
 	if (f == NULL) goto OFFSETBYUSER_EXIT;
 
 	TWEET *tt = NULL;
 	long offset = HEADER;		// Offset of the last begin of tweet
 	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
 
+	//goes to the beginning of the tweets in the data file
 	fseek(f, offset, SEEK_SET);
+	//while tweets exist
 	while(fread(&nextTweet, 
 				sizeof nextTweet, 1, f) > 0 ) {
 		if (nextTweet > 0){
+			//loads the tweet
 			tt = readTweet(filename, offset);
+			if(tt == NULL) return NULL;
+			//if there is a match by user
 			int cmp = strcmp(username, tt->userName);
 			if (cmp == 0) {
+				//increase the size of listOffset vector and adds the offset to its end
 				(*foundOccurences)++;
 				listOffset = realloc(listOffset, *foundOccurences);
 				listOffset[(*foundOccurences)-1] = offset;
 			}
+			//frees the tweet
 			destroyTweet(&tt);
 		}
-
+		//updates offset to the next tweet
 		offset += abs(nextTweet) + sizeof nextTweet;
+		//goes to the next tweet
 		fseek(f, offset, SEEK_SET);
 	}
 
