@@ -1,0 +1,39 @@
+insert
+user
+11 S 32 N
+pt-br
+texto
+10
+200
+3
+insert
+secondUser
+15 S 82 N
+en-us
+text
+20
+242
+6
+request all
+
+
+request user user
+
+request favorite 10
+
+request language pt-br
+
+
+remove 10
+1
+request all
+
+
+insert
+thirdUser
+49 S 88 N
+fr-fr
+avec due formaggio
+15
+29
+6
