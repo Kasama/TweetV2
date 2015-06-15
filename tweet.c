@@ -735,33 +735,37 @@ void generateIndexes(char *filename){
 static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
 	int i;
 	long ret = -1;
+	
+	// Get filename and open file
 	char *favIdxTabFileName = getFavoriteTableIndexFileName(filename);
 	FILE *fileTab = fopen(favIdxTabFileName, "r");
 	free(favIdxTabFileName);
-	if (fileTab == NULL)
-		goto findFavRet;
+	if (fileTab == NULL) goto findFavRet;
 
 	int nTweets;
-	if (fread(&nTweets, sizeof nTweets, 1, fileTab) <= 0) // Indice desatualizado
-		goto findFavRetTab;
-	if (nTweets != UPDATED)
-		goto findFavRetTab;
+	
+	// Check if the Index Status is updated
+	if (fread(&nTweets, sizeof nTweets, 1, fileTab) <= 0) goto findFavRetTab;
+	if (nTweets != UPDATED) goto findFavRetTab;
+
+	// Get size of file (without header)
 	fseek(fileTab, 0, SEEK_END);
 	nTweets = (ftell(fileTab)-INDEXHEADER)/sizeof(FAVITEM);
+
+	// Load Table to RAM (without header)
 	fseek(fileTab, INDEXHEADER, SEEK_SET);
 	FAVITEM *items = malloc(nTweets*sizeof(FAVITEM));
-	if (items == NULL)
-		goto findFavRetTab;
-	if (fread(items, sizeof(FAVITEM), nTweets, fileTab) <= 0)
-		goto findFavRetTab;
+	if (items == NULL) goto findFavRetTab;
+	if (fread(items, sizeof(FAVITEM), nTweets, fileTab) <= 0) goto findFavRetTab;
 
 	FAVITEM key;
 	key.favoriteCount = favoriteCount;
-	for (i = 0; i < nTweets; i++){
-	}
+
+	// Binary Search
 	int found = binarySearch(&key, items, nTweets, sizeof(FAVITEM), compareFavoriteItem);
-	if (found == -1)
-		goto findFavRetTab;
+	if (found == -1) goto findFavRetTab;
+
+	// Calculate the offset
 	ret = (found*sizeof(FAVITEM))+INDEXHEADER;
 
 findFavRetTab:
@@ -772,35 +776,40 @@ findFavRet:
 
 static long findIndexOffsetByLanguage(char *filename, char* language){
 	long ret = -1;
+	
+	// Get filename and open file
 	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
 	FILE *fileTab = fopen(langIdxTabFileName, "r");
 	free(langIdxTabFileName);
-	if (fileTab == NULL)
-		goto findLangRet;
+	if (fileTab == NULL) goto findLangRet;
 
 	int nTweets;
-	if (fread(&nTweets, sizeof nTweets, 1, fileTab) <= 0)
-		goto findLangRetTab;
-	if (nTweets != UPDATED)
-		goto findLangRetTab;
+	
+	// Check if the Index Status is updated
+	if (fread(&nTweets, sizeof nTweets, 1, fileTab) <= 0) goto findLangRetTab;
+	if (nTweets != UPDATED) goto findLangRetTab;
+
+	// Get size of file (without header)
 	fseek(fileTab, 0, SEEK_END);
 	nTweets = (ftell(fileTab)-INDEXHEADER)/sizeof(LANGITEM);
+
+	// Load Table to RAM (without header)
 	fseek(fileTab, INDEXHEADER, SEEK_SET);
 	LANGITEM *items = malloc(nTweets*sizeof(LANGITEM));
-	if (items == NULL)
-		goto findLangRetTab;
-	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) <= 0)
-		goto findLangRetTab;
+	if (items == NULL) goto findLangRetTab;
+	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) <= 0) goto findLangRetTab;
 
 	LANGITEM key;
 	int len = strlen(language);
-	len = (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len;
+	len = (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len;	// min(len, MAX_LANGUAGE_SIZE)
 	strncpy(key.language, language, len);
-	key.language[len] = 0;
-	int found = binarySearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
-	if (found == -1)
-		goto findLangRetTab;
+	key.language[len] = 0;	// Put '\0' at end of string
 
+	// Binary Search
+	int found = binarySearch(&key, items, nTweets, sizeof(LANGITEM), compareLanguageItem);
+	if (found == -1) goto findLangRetTab;
+
+	// Calculate the offset
 	ret = (found*sizeof(LANGITEM))+INDEXHEADER;
 
 findLangRetTab:
