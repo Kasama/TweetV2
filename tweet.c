@@ -622,7 +622,6 @@ long *findAllTweets(char *filename, long *foundOccurences){
 
 	if (f == NULL) goto FINDALLTWEETS_EXIT;
 
-	TWEET *tt = NULL;
 	long offset = HEADER;		// Offset of the last begin of tweet
 	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
 
@@ -733,7 +732,6 @@ void generateIndexes(char *filename){
 }
 
 static long findIndexOffsetByFavoriteCount(char *filename, int favoriteCount){
-	int i;
 	long ret = -1;
 	
 	// Get filename and open file
