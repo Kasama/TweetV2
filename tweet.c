@@ -889,7 +889,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 			//sort it again
 			qsort(aux, lastTabIndex, sizeof(FAVITEM), compareFavoriteItem);
 			//and write it back to the file
-			if(fwrite(aux, sizeOfTableFile, 1, favoriteTable)) goto RTFFI_EXIT;
+			if(fwrite(aux, sizeOfTableFile - INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 	printf("8\n");
 			//as we've finished removing the element, we update the table status to updated and return
 		}
@@ -918,7 +918,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 
 	fseek(favoriteList, toUpdate, SEEK_SET);
 	previous.next = current.next;
-	fwrite(&previous, sizeof previous, 1, favoriteList);
+	if(fwrite(&previous, sizeof previous, 1, favoriteList) <= 0) goto RTFFI_EXIT;
 	//setting the table status to updated and returning
 	fseek(favoriteTable, 0, SEEK_SET);
 	tableStatus = UPDATED;

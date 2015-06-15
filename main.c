@@ -159,6 +159,7 @@ void cmdRemove(char *fileName){
 
 	offsets = findDataOffsetByFavoriteCount(fileName, favorites, &amount);
 
+	getchar();
 	for (int i = 0; i < amount; i++){
 		printf("Tweet %d\n", i+1);
 		TWEET *tt;
