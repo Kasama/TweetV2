@@ -28,6 +28,7 @@ typedef struct langIndexItem{
 
 }LANGITEM;
 
+// a generic binary search
 int binarySearch(										\
 	register const void *key,							\
 	const void *base0,									\
@@ -41,6 +42,7 @@ int binarySearch(										\
 	register int cmp;
 	register const void *p;
 
+	// bsearch routine, split the number of members in half each interation
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		int index = (lim >> 1) * size;
 		p = base + index;
@@ -93,6 +95,7 @@ static char *getLanguageListIndexFileName(char *filename);
 static char *getFavoriteTableIndexFileName(char *filename);
 static char *getFavoriteListIndexFileName(char *filename);
 
+// Gets the name of the data (*.dat) file from the base name
 static char *getDataFileName(char *filename){
 	char *file;
 	file = malloc(strlen(filename)+4);
@@ -101,12 +104,14 @@ static char *getDataFileName(char *filename){
 	return file;
 }
 
+// compare 2 table items and check if they are less than, equal to or greater than the other
 int compareLanguageItem(const void* o1, const void* o2){
 	LANGITEM *i1 = (LANGITEM*) o1;
 	LANGITEM *i2 = (LANGITEM*) o2;
 	return strcmp(i1->language, i2->language);
 }
 
+// compare 2 table items and check if they are less than, equal to or greater than the other
 int compareFavoriteItem(const void* o1, const void* o2){
 	FAVITEM *i1 = (FAVITEM*) o1;
 	FAVITEM *i2 = (FAVITEM*) o2;
@@ -160,6 +165,7 @@ BESTFIT_ERROR:
 	return offset;
 }
 
+// get the size in bytes of a tweet in memmory
 static int tweetSize(TWEET* tweet){
 	int sum = 0;
 	sum += strlen(tweet->text);
@@ -442,6 +448,7 @@ WRITETWEET_EXIT:
 
 }
 
+// allocates a new tweet from the given data
 TWEET *newTweet(				\
 		char   *text,           \
 		char   *userName,       \
@@ -471,6 +478,7 @@ TWEET *newTweet(				\
 	return tw;
 }
 
+// reads a field until the delimiter "END_FIELD" is found
 static char *readField(FILE *stream) {
 	char *buffer = NULL;
 	char character;
@@ -561,12 +569,14 @@ static char *getFavoriteListIndexFileName(char *filename){
 	return file;
 }
 
+// goes through the data file and return all tweets
 long *findAllTweets(char *filename, long *foundOccurences){
 	*foundOccurences = 0;
 	long *listOffset = NULL;
 
 	char * datafilename = getDataFileName(filename);
 	FILE *f = fopen(datafilename, "r");
+	//open the file
 
 	if (f == NULL) goto FINDALLTWEETS_EXIT;
 
@@ -575,14 +585,15 @@ long *findAllTweets(char *filename, long *foundOccurences){
 	int nextTweet = 0;			// Offset from the last begin of tweet until the next begin of tweet
 
 	fseek(f, offset, SEEK_SET);
+	// for every tweet in the file
 	while(fread(&nextTweet, 
 				sizeof nextTweet, 1, f) > 0 ) {
+		// that is not removed
 		if (nextTweet > 0){
-			tt = readTweet(filename, offset);
+			// add it to the list of found tweets
 			(*foundOccurences)++;
 			listOffset = realloc(listOffset, *foundOccurences);
 			listOffset[(*foundOccurences)-1] = offset;
-			destroyTweet(&tt);
 		}
 
 		offset += abs(nextTweet) + sizeof nextTweet;
@@ -592,6 +603,7 @@ long *findAllTweets(char *filename, long *foundOccurences){
 FINDALLTWEETS_EXIT:
 	if (f != NULL) fclose(f);
 	if(datafilename != NULL) free(datafilename);
+	//return the list of found
 	return listOffset;
 }
 
