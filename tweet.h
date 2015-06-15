@@ -11,6 +11,7 @@
 
 #ifndef TWEET_H
 #define TWEET_H 
+#include <stddef.h>
 
 // ascii character "Unit Separator"
 #define   END_FIELD   31
@@ -108,5 +109,8 @@ int removeTweet(char *filename, long offset);
 void printTweet(TWEET *tweet);
 
 void destroyTweet (TWEET **tweet);
+
+long *match (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize);
+long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize);
 
 #endif

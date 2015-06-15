@@ -152,17 +152,43 @@ void cmdInsert(char *fileName){
  *
  */
 void cmdRemove(char *fileName){
-	int RRN, ret;
+	int favorites, ret, choice;
+	long *offsets, amount;
 
-	scanf("%d", &RRN);
+	scanf("%d", &favorites);
 
-	// call the function to remove the tweet using the RRN
-	ret = removeTweet(fileName, RRN);
+	offsets = findDataOffsetByFavoriteCount(fileName, favorites, &amount);
+
+	for (int i = 0; i < amount; i++){
+		printf("Tweet %d\n", i+1);
+		TWEET *tt;
+		tt = readTweet(fileName, offsets[i]);
+		printTweet(tt);
+		destroyTweet(&tt);
+		if (i+1 < amount){
+				printf("------------------- Press enter to see next tweet\n"); 
+			getchar();
+		}
+	}
+	printf("select the number of the tweet that you want to remove: ");
+	scanf("%d", &choice);
+	choice--;
+	if (choice < 0 || choice >= amount){
+		printf("invalid number!\n");
+		return;
+	}
+	printf("removing...\n");
+	TWEET *tt;
+	tt = readTweet(fileName, offsets[choice]);
+	printTweet(tt);
+	destroyTweet(&tt);
+
+	ret = removeTweet(fileName, offsets[choice]);
 	// check the return value and print a error message if needed
 	if(ret == 1){
-		printf("The Tweet %d was successfully removed\n", RRN);
+		printf("The Tweet %d was successfully removed\n", choice+1);
 	}else{
-		printf("The Tweet %d could not be removed. Maybe it does not exist\n", RRN);
+		printf("The Tweet %d could not be removed. Maybe it does not exist\n", choice+1);
 	}
 }
 
@@ -183,13 +209,11 @@ void cmdRemove(char *fileName){
  *
  */
 void cmdRequest(char *fileName){
-	TWEET **tweets = NULL;
-	TWEET *tweet = NULL;
 	char cmd[CMD_LENGTH], buf[10*CMD_LENGTH];
 	int favorite;
 	char *language;
 	long amount = 0;
-	long *offsets;
+	long *offsets = NULL;
 
 	// reads the next part of the request command
 	scanf("%s", cmd); 
@@ -203,16 +227,27 @@ void cmdRequest(char *fileName){
 		scanf("%d", &favorite); // reads the RRN to request from
 		offsets = findDataOffsetByFavoriteCount(fileName, favorite, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_LANGUAGE) == 0){
+		scanf(" ");
 		language = readField(stdin, '\n');
 		offsets = findDataOffsetByLanguage(fileName, language, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_MERGE) == 0){
 		scanf("%d", &favorite);
+		scanf(" ");
 		language = readField(stdin, '\n');
-
+		long *favOffsets = findDataOffsetByFavoriteCount(fileName, favorite, &amount);
+		long favAmount = amount;
+		long *langOffsets = findDataOffsetByLanguage(fileName, language, &amount);
+		long langAmount = amount;
+		offsets = merge(favOffsets, langOffsets, favAmount, langAmount, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_MATCH) == 0){
 		scanf("%d", &favorite);
+		scanf(" ");
 		language = readField(stdin, '\n');
-
+		long *favOffsets = findDataOffsetByFavoriteCount(fileName, favorite, &amount);
+		long favAmount = amount;
+		long *langOffsets = findDataOffsetByLanguage(fileName, language, &amount);
+		long langAmount = amount;
+		offsets = match(favOffsets, langOffsets, favAmount, langAmount, &amount);
 	}else{
 		fgets(buf, sizeof buf, stdin); // if the command is invalid, consume the stdin buffer
 		buf[strlen(buf)-1] = 0; // as fgets adds the \n to the buffer, we remove it
@@ -222,13 +257,14 @@ void cmdRequest(char *fileName){
 	if(offsets == NULL){ // if no tweets were found, print a error message
 		printf("Could not find requested Tweet(s). Maybe it does not exist\n");
 	}else{
+		getchar();
 		for (int i = 0; i < amount; i++){
 			TWEET *tt;
 			tt = readTweet(fileName, offsets[i]);
 			printTweet(tt);
 			destroyTweet(&tt);
 			if (i+1 < amount){
-				printf("------------------------- Press any key to see next tweet\n"); 
+				printf("------------------- Press enter to see next tweet\n"); 
 				getchar();
 			}
 		}

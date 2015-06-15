@@ -1100,7 +1100,7 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
 			iv2++;
 		}
-		*resultSize++;
+		(*resultSize)++;
 	}
 	
 	if (!(iv1 == sz_v1 && iv2 == sz_v2)) {	// Se ao menos um dos vetores ainda tem elementos:
@@ -1117,9 +1117,9 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 		
 		result = realloc(result, (*resultSize + (end - i -1)));	// Cria espaço para os novos elementos
 		
-		for (i; i < end; i++){
+		for (; i < end; i++){
 			result[*resultSize] = over[i];
-			*resultSize++;
+			(*resultSize)++;
 		}
 	}
 	return result;
@@ -1145,7 +1145,7 @@ long *match (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
 			iv2++;
 		}
-		*resultSize++;
+		(*resultSize)++;
 	}
 	return result;
 }
