@@ -1,3 +1,14 @@
+/*
+ * @Authors:
+ *
+ * Carlos Alberto Schneider Junior - 9167910
+ * Frederico de Azevedo Marques    - 8936926
+ * Henrique Martins Loschiavo      - 8936972
+ * Lucas Kassouf Crocomo           - 8937420
+ * Roberto Pommella Alegro         - 8936756
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>

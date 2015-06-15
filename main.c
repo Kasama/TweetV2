@@ -233,7 +233,6 @@ void cmdRequest(char *fileName){
 		offsets = findDataOffsetByLanguage(fileName, language, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_MERGE) == 0){
 		scanf("%d", &favorite);
-		scanf(" ");
 		language = readField(stdin, '\n');
 		long *favOffsets = findDataOffsetByFavoriteCount(fileName, favorite, &amount);
 		long favAmount = amount;
@@ -242,7 +241,6 @@ void cmdRequest(char *fileName){
 		offsets = merge(favOffsets, langOffsets, favAmount, langAmount, &amount);
 	}else if(strcmp(cmd, CMD_REQUEST_MATCH) == 0){
 		scanf("%d", &favorite);
-		scanf(" ");
 		language = readField(stdin, '\n');
 		long *favOffsets = findDataOffsetByFavoriteCount(fileName, favorite, &amount);
 		long favAmount = amount;
@@ -301,22 +299,22 @@ void cmdHelp(char *progname){
 	printf("---------------------------------------------------\n");
 	printf("Usage: %s dataBaseName\n", progname);
 	printf("\n"); 
-	printf("%s\t\t\t- print this help\n", CMD_HELP);
-	printf("%s\t\t\t- print the credits\n", CMD_CREDITS);
-	printf("%s\t\t\t- insert a tweet into the database (You will be prompted asking for the information to store)\n", CMD_INSERT);
-	printf("%s <Favorites>\t\t- remove a tweet from the database using the number of favorites it has\n", CMD_REMOVE);
-	printf("%s %s\t\t- print all tweets in the database\n", CMD_REQUEST, CMD_REQUEST_ALL);
-	printf("%s %s <UserName>\t- print all tweets of the user <UserName>\n", CMD_REQUEST, CMD_REQUEST_USER);
-	printf("%s %s <Favorites>\t- print all tweets that have the specified number of favorites\n", CMD_REQUEST, CMD_REQUEST_FAVORITE);
-	printf("%s %s <Language>\t- print all tweets that have the specified language\n", CMD_REQUEST, CMD_REQUEST_LANGUAGE);
+	printf("%s\t\t\t\t\t- print this help\n", CMD_HELP);
+	printf("%s\t\t\t\t\t- print the credits\n", CMD_CREDITS);
+	printf("%s\t\t\t\t\t- insert a tweet into the database (You will be prompted asking for the information to store)\n", CMD_INSERT);
+	printf("%s <Favorites>\t\t\t- remove a tweet from the database using the number of favorites it has\n", CMD_REMOVE);
+	printf("%s %s\t\t\t\t- print all tweets in the database\n", CMD_REQUEST, CMD_REQUEST_ALL);
+	printf("%s %s <UserName>\t\t\t- print all tweets of the user <UserName>\n", CMD_REQUEST, CMD_REQUEST_USER);
+	printf("%s %s <Favorites>\t\t- print all tweets that have the specified number of favorites\n", CMD_REQUEST, CMD_REQUEST_FAVORITE);
+	printf("%s %s <Language>\t\t- print all tweets that have the specified language\n", CMD_REQUEST, CMD_REQUEST_LANGUAGE);
 	printf("%s %s <Favorites> <Language>\t- print all tweets that have the specified number of favorites AND the specified language\n", CMD_REQUEST, CMD_REQUEST_MATCH);
 	printf("%s %s <Favorites> <Language>\t- print all tweets that have the specified number of favorites OR the specified language\n", CMD_REQUEST, CMD_REQUEST_MERGE);
-	printf("%s <fileName>\t\t- change the data file to the specified one\n", CMD_CHANGE_DATAFILE);
-	printf("%s\t\t\t- list all files in current directory\n", CMD_LS);
-	printf("%s\t\t\t- change the current directory\n", CMD_CD);
-	printf("%s <path>\t\t- create a new directory\n", CMD_MKDIR);
-	printf("%s\t\t\t- print the path of the current directory\n", CMD_PWD);
-	printf("%s\t\t\t- clear the screen \n", CMD_CLEAR);
+	printf("%s <fileName>\t\t\t\t- change the data file to the specified one\n", CMD_CHANGE_DATAFILE);
+	printf("%s\t\t\t\t\t- list all files in current directory\n", CMD_LS);
+	printf("%s\t\t\t\t\t- change the current directory\n", CMD_CD);
+	printf("%s <path>\t\t\t\t- create a new directory\n", CMD_MKDIR);
+	printf("%s\t\t\t\t\t- print the path of the current directory\n", CMD_PWD);
+	printf("%s\t\t\t\t\t- clear the screen \n", CMD_CLEAR);
 	printf("\n");
 	printf("Further documentation can be found in the public repository at: \n");
 	printf("%s\n", DOC_PDF);
