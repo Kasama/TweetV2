@@ -735,37 +735,44 @@ findLangRet:
 	return ret;
 }
 
+// Find all data offsets with certain favorite count
 long *findDataOffsetByFavoriteCount(char *filename, int favoriteCount, long *foundOccurences){
 	*foundOccurences = 0;
-	long *ret = NULL;
+	long *ret = NULL;	// Default return
+
+	// Get file names, open the files, and free the generated filenames
 	char *listFileName = getFavoriteListIndexFileName(filename);
+	char *tabFileName = getFavoriteTableIndexFileName(filename);
 	FILE *fileList = fopen(listFileName, "r");
+	FILE *fileTab = fopen(tabFileName, "r");
+
 	free(listFileName);
 	if (fileList == NULL) goto findFavRet;
-	char *tabFileName = getFavoriteTableIndexFileName(filename);
-	FILE *fileTab = fopen(tabFileName, "r");
 	free(tabFileName);
 	if (fileTab == NULL) goto findFavRetList;
 
 	long offset;
+
+	// Get first item on stack at List Index File
 	offset = findIndexOffsetByFavoriteCount(filename, favoriteCount);
+	if (offset == -1) goto findFavRetList;
 	fseek(fileTab, offset, SEEK_SET);
 	FAVITEM i;
 	fread(&i, sizeof i, 1, fileTab);
 	fseek(fileList, i.byteOffset, SEEK_SET);
 
+	// Load the list in *ret
 	FAVLISTITEM current;
 	do {
-		if (fread(&current, sizeof current, 1, fileList) <= 0)
-			goto findFavRetTab;
+		if (fread(&current, sizeof current, 1, fileList) <= 0) goto findFavRetTab;
 		(*foundOccurences)++;
 		ret = realloc(ret, (sizeof current)*(*foundOccurences));
-		if (ret == NULL)
-			goto findFavRetTab;
+		if (ret == NULL) goto findFavRetTab;
 		ret[(*foundOccurences)-1] = current.fileOffset;
 		if (current.next > 0) fseek(fileList, current.next, SEEK_SET);
 	}while(current.next != -1);
 
+// Close files
 findFavRetTab:
 	fclose(fileTab);
 findFavRetList:
@@ -777,33 +784,37 @@ findFavRet:
 // Find all data offsets with certain language
 long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccurences){
 	*foundOccurences = 0;
-	long *ret = NULL;
+	long *ret = NULL;	// Default return
+
+	// Get file names, open the files, and free the generated filenames
 	char *langIdxTabFileName = getLanguageTableIndexFileName(filename);
 	char *langIdxListFileName = getLanguageListIndexFileName(filename);
 	FILE *fileTab = fopen(langIdxTabFileName, "r");
-	free(langIdxTabFileName);
-	if (fileTab == NULL)
-		goto findLangRet;
 	FILE *fileList = fopen(langIdxListFileName, "r");
+
+	free(langIdxTabFileName);
+	if (fileTab == NULL) goto findLangRet;
 	free(langIdxListFileName);
-	if (fileList == NULL)
-		goto findLangRetTab;
+	if (fileList == NULL) goto findLangRetTab;
 
 	int nTweets;
-	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0)
-		goto findLangRetList;
-	if (nTweets != UPDATED)
-		goto findLangRetList;
+	// Read List status and check if it's updated
+	if (fread(&nTweets, sizeof nTweets, 1, fileTab) == 0) goto findLangRetList;
+	if (nTweets != UPDATED) goto findLangRetList;
+
+	// Get the number of items in Table File (without header)
 	fseek(fileTab, 0, SEEK_END);
 	nTweets = (ftell(fileTab)-INDEXHEADER)/sizeof(LANGITEM);
+
+	// Loads Table File to RAM (without header)
 	fseek(fileTab, INDEXHEADER, SEEK_SET);
 	LANGITEM *items = malloc(nTweets*sizeof(LANGITEM));
-	if (items == NULL)
-		goto findLangRetList;
-	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) == 0)
-		goto findLangRetList;
+	if (items == NULL) goto findLangRetList;
+	if (fread(items, sizeof(LANGITEM), nTweets, fileTab) == 0) goto findLangRetList;
 
 	long offset;
+
+	// Get first item on stack at List Index File
 	offset = findIndexOffsetByLanguage(filename, language);
 	if (offset == -1) goto findLangRetList;
 	fseek(fileTab, offset, SEEK_SET);
@@ -811,20 +822,20 @@ long *findDataOffsetByLanguage(char *filename, char* language, long *foundOccure
 	fread(&i, sizeof i, 1, fileTab);
 	fseek(fileList, i.byteOffset, SEEK_SET);
 
+	// Load the list in *ret
 	LANGLISTITEM current;
 	do {
-		if (fread(&current, sizeof current, 1, fileList) == 0)
-			goto findLangRetList;
+		if (fread(&current, sizeof current, 1, fileList) == 0) goto findLangRetList;
 		TWEET *t = readTweet(filename, current.fileOffset);
-		if (strcmp(t->language, language) == 0){
+		if (strcmp(t->language, language) == 0){	// Compare if really match the key with the data file
 			ret = realloc(ret, sizeof current);
-			if (ret == NULL)
-				goto findLangRetList;
+			if (ret == NULL) goto findLangRetList;
 			ret[(*foundOccurences)++] = current.fileOffset;
 		}
 		if (current.next > 0) fseek(fileList, current.next, SEEK_SET);
 	}while(current.next != -1);
 
+// Close files
 findLangRetList:
 	fclose(fileList);
 findLangRetTab:
@@ -921,11 +932,15 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	// Close files
 	fclose(favoriteTable);
 	fclose(favoriteList);
+	free(listFileName);
+	free(tableFileName);
 	return 1;
 
 RTFFI_EXIT:
 	fclose(favoriteTable);
 	fclose(favoriteList);
+	free(listFileName);
+	free(tableFileName);
 	return 0;
 }
 
@@ -1018,11 +1033,15 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	// Close files
 	fclose(languageTable);
 	fclose(languageList);
+	free(listFileName);
+	free(tableFileName);
 	return 1;
 
 RTFFI_EXIT:
 	fclose(languageTable);
 	fclose(languageList);
+	free(listFileName);
+	free(tableFileName);
 	return 0;
 }
 
@@ -1030,7 +1049,7 @@ int removeTweet(char *filename, long offset) {
 	if(filename == NULL) return 0;
 
 	char *dataFileName = getDataFileName(filename);
-	// tries to open the file and check if it was successful
+	//tries to open the file and check if it was successful
 	FILE *file = fopen(dataFileName, "r+");
 	if(file == NULL) return 0;
 
@@ -1062,17 +1081,19 @@ int removeTweet(char *filename, long offset) {
 	fieldSize *= -1;
 	if(fwrite(&fieldSize, sizeof(int), 1, file) <= 0) goto REMOVE_TWEET_EXIT;
 
-	//removing indexes from the indexes fieldSize
+	//removing indexes from the index files
 	int langRet = removeTweetFromLanguageIndex(filename, removedTweet, offset);
 	int favRet = removeTweetFromFavoriteIndex(filename, removedTweet, offset);
 	if(!langRet || !favRet)
 		goto REMOVE_TWEET_EXIT;
 
 	fclose(file);
+	free(datafilename);
 	return 1;
 
 REMOVE_TWEET_EXIT:
 	fclose(file);
+	free(datafilename);
 	return 0;
 }
 
