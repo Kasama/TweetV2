@@ -177,13 +177,16 @@ static int tweetSize(TWEET* tweet){
 	return sum;
 }
 
+//write a tweet to an file
 static void flushTweet(char* filename, long byteOffset, int fieldsize, TWEET *tweet){
 
 	FILE *arq = NULL;
+	//if the file is not created, it will be created and then reopen to allow moving around the file's cursor
 	arq = fopen(filename, "a");
 	arq = freopen(filename, "r+", arq );
 	if(arq == NULL) return;
 
+	//move to the given location in the file and starts to write the tweet
 	if(byteOffset != 0){
 		if(fseek(arq, byteOffset, SEEK_SET) != 0)	goto FLUSHTWEET_EXIT;
 	}
@@ -200,124 +203,144 @@ FLUSHTWEET_EXIT:
 	if(arq != NULL) fclose(arq);
 }
 
+//this function will update both, list and table, files from Language Index
 static void updateLanguageIndexFiles(char* table, char* list, TWEET *tweet, long byteOffset){
 	
+	//create if needed a new file and then reopen to work on it
 	FILE *indexTable = fopen(table, "a");
 	indexTable = freopen(table, "r+", indexTable);
 	FILE *indexList = NULL;
-	int updatedStatus = !UPDATED;
+	int updatedStatus = !UPDATED;//set updated file status variable to "not updated"
 
-	fseek(indexTable, 0, SEEK_END);
-	long fileSize = ftell(indexTable);
-	fseek(indexTable, INDEXHEADER, SEEK_SET);
-	LANGITEM *langVector = malloc(fileSize - INDEXHEADER);
-	LANGITEM newEntryOnTab;	
-	LANGLISTITEM newEntryOnList;
-	int size = (fileSize - INDEXHEADER)/sizeof(LANGITEM); 
+	fseek(indexTable, 0, SEEK_END);//go to end of file
+	long fileSize = ftell(indexTable);//get the file's size
+	fseek(indexTable, INDEXHEADER, SEEK_SET);//move to the frist entry on file, which is after the header
+	LANGITEM *langVector = malloc(fileSize - INDEXHEADER);//allocate a vector for table
+	LANGITEM newEntryOnTab;	//new entry on tab variable
+	LANGLISTITEM newEntryOnList;//new entry on list variable
+	int size = (fileSize - INDEXHEADER)/sizeof(LANGITEM);//get the vector's size 
 	if (size < 0) size = 0;
 	
+	//create the key. if it's larger than 50 units, than it will be cropped.
 	int len = strlen(tweet->language);
 	len = (MAX_LANGUAGE_SIZE < len)?MAX_LANGUAGE_SIZE:len;
 	strncpy(newEntryOnTab.language, tweet->language, len);
-	//newEntryOnTab.byteOffset = byteOffset;
 	newEntryOnTab.language[len - 1] = 0;	
 
+	//load table file to memory, using a vector
 	fread(langVector, sizeof(LANGITEM), size, indexTable);
-	int index = binarySearch(&newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);	
+	int index = binarySearch(&newEntryOnTab, langVector, size, sizeof(LANGITEM), compareLanguageItem);//returns the key's index
 	int found = index;
 
-	if(found == -1){
-		langVector = realloc(langVector, (fileSize - INDEXHEADER + sizeof(LANGITEM))); //adicionado um espaço para acrescentar a nova entrada
+	if(found == -1){//if we dont have the given key
+		langVector = realloc(langVector, (fileSize - INDEXHEADER + sizeof(LANGITEM))); //add a new space to add the new entry
 		size++;
-		langVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
+		langVector[size - 1].byteOffset = -1; //append insert variable at the vector's end
 		strcpy(langVector[size - 1].language, newEntryOnTab.language);
 		index = size - 1;
 	}
 
-	indexList = fopen(list, "a"); //abro a lista em modo append
+	indexList = fopen(list, "a"); //open list file to append
 	indexList = freopen(list, "r+", indexList);
 	fseek(indexList, 0, SEEK_SET);
-	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
-	fseek(indexList, 0, SEEK_END);
-
-	newEntryOnTab.byteOffset = ftell(indexList);//salvo o byteoffset na variavel que vai para a tab
+	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);//set file to not updated
+	fseek(indexList, 0, SEEK_END);//go to eof
+	
+	//stores the beytoffset in the entry's table variable
+	newEntryOnTab.byteOffset = ftell(indexList);
 	newEntryOnList.fileOffset = byteOffset;
 	newEntryOnList.next = langVector[index].byteOffset;
 	
+	//write in the list's file the new entry
 	fwrite(&newEntryOnList, sizeof newEntryOnList, 1, indexList);
 	langVector[index].byteOffset = newEntryOnTab.byteOffset;
 
+	//if we didn't found the key, QuickSort the vector
 	if(found == -1)
 		qsort(langVector,size, sizeof(LANGITEM), compareLanguageItem);//ordeno o vetor
 	
+	//setting updated status to uptaded
 	updatedStatus = UPDATED;	
 	fclose(indexTable);
+
+	//writing to file
 	indexTable = fopen(table, "w+");
 	fwrite(&updatedStatus, sizeof(int), 1, indexTable);	
 	fwrite(langVector, sizeof(LANGITEM), size, indexTable);
 
+	//setting updated status
 	fseek(indexList, 0, SEEK_SET);
 	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
 
+	//closing all files and retur memory to OS
 	fclose(indexTable);
 	fclose(indexList);
 	free(langVector);
 }
 
+//this function will update both, list and table, files from favorite count Index
 static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet, long byteOffset){
 
+	//create if needed a new file and then reopen to work on it
 	FILE *indexTable = fopen(table, "a");
 	indexTable = freopen(table,"r+",indexTable );
 	FILE *indexList = NULL;
-	int updatedStatus = !UPDATED;
+	int updatedStatus = !UPDATED;//set updated file status variable to "not updated"
 
-	fseek(indexTable, 0, SEEK_END);
-	long fileSize = ftell(indexTable);
-	fseek(indexTable, INDEXHEADER, SEEK_SET);
-	FAVITEM *favVector = malloc(fileSize - INDEXHEADER);
-	FAVITEM newEntryOnTab;	
-	FAVLISTITEM newEntryOnList;
-	int size = (fileSize - INDEXHEADER)/sizeof(FAVITEM); 
+	fseek(indexTable, 0, SEEK_END);//go to end of file
+	long fileSize = ftell(indexTable);//get the file's size
+	fseek(indexTable, INDEXHEADER, SEEK_SET);//move to the frist entry on file, which is after the header
+	FAVITEM *favVector = malloc(fileSize - INDEXHEADER);//allocate a vector for table
+	FAVITEM newEntryOnTab;//new entry on tab variable
+	FAVLISTITEM newEntryOnList;//new entry on list variable
+	int size = (fileSize - INDEXHEADER)/sizeof(FAVITEM);//get the vector's size 
 	if (size < 0) size = 0;
 	
 	newEntryOnTab.favoriteCount = tweet->favoriteCount;
-	//newEntryOnTab.byteOffset = byteOffset;
-
+	
+	//load table file to memory, using a vector
 	fread(favVector, sizeof(FAVITEM), size, indexTable);
 
 	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(FAVITEM), compareFavoriteItem);	
 	int found = index;
 
-	if(found == -1){
-		favVector = realloc(favVector, (fileSize - sizeof(int) + sizeof(FAVITEM))); //adicionado um espaço para acrescentar a nova entrada
+	if(found == -1){//if we dont have the given key
+		favVector = realloc(favVector, (fileSize - sizeof(int) + sizeof(FAVITEM))); //add a new space to add the new entry
 		size++;
-		favVector[size - 1].byteOffset = -1; //insiro a variavel de insercao no final do vetor
+		favVector[size - 1].byteOffset = -1; //append insert variable at the vector's end
 		favVector[size - 1].favoriteCount = newEntryOnTab.favoriteCount;
 		index = size - 1;
 	}
 
-	indexList = fopen(list, "a"); //abro a lista em modo append
+	indexList = fopen(list, "a"); //open list file to append
 	indexList = freopen(list,"r+",indexList );
 	fseek(indexList, 0, SEEK_SET);
-	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
-	fseek(indexList, 0, SEEK_END);
+	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);//set file to not updated
+	fseek(indexList, 0, SEEK_END);//go to eof
 
-	newEntryOnTab.byteOffset = ftell(indexList);//salvo o byteoffset na variavel que vai para a tab
+	//stores the beytoffset in the entry's table variable
+	newEntryOnTab.byteOffset = ftell(indexList);
 	newEntryOnList.fileOffset = byteOffset;
 	newEntryOnList.next = favVector[index].byteOffset;
-	
+
+	//write in the list's file the new entry
 	fwrite(&newEntryOnList, sizeof newEntryOnList, 1, indexList);
 	favVector[index].byteOffset = newEntryOnTab.byteOffset;
 
+	//if we didn't found the key, QuickSort the vector
 	if(found == -1)
 		qsort(favVector,size, sizeof(FAVITEM), compareFavoriteItem);//ordeno o vetor
 	
+	//setting updated status to uptaded
 	updatedStatus = UPDATED;	
 	fclose(indexTable);
+
+	//writing to file
 	indexTable = fopen(table, "w+");
 	fwrite(&updatedStatus, sizeof(int), 1, indexTable);	
 	fwrite(favVector, sizeof(FAVITEM), size, indexTable);
 
+	//setting updated status
 	fseek(indexList, 0, SEEK_SET);
 	fwrite(&updatedStatus, sizeof updatedStatus, 1, indexList);
 
@@ -328,17 +351,20 @@ static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet,
 
 static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
 	
-	char *table = getLanguageTableIndexFileName(filename);
-	char *list = getLanguageListIndexFileName(filename);
+	char *table = getLanguageTableIndexFileName(filename);//generating table file path
+	char *list = getLanguageListIndexFileName(filename);//generating list file path
 	
+	//updates Language index file
 	updateLanguageIndexFiles (table, list, tweet, byteOffset);
 
 	free(list);
 	free(table);
 
+	//regenerating path's
 	table = getFavoriteTableIndexFileName(filename);
 	list = getFavoriteListIndexFileName(filename);
 
+	//updating files
 	updateFavoriteCountIndexFiles(table, list, tweet, byteOffset);
 
 	free(list);
@@ -348,19 +374,23 @@ static void updateIndexFiles(TWEET *tweet, long byteOffset, char* filename){
 int writeTweet(char *filename, TWEET *tw){
 	if(filename == NULL || tw == NULL) return 0;
 
+	//creating new tweet variable
 	TWEET *tweet;
 	tweet = malloc(sizeof(TWEET));
 
+	//creating space for file separators
 	tweet->text = malloc((strlen(tw->text)) + 2);
 	tweet->userName = malloc((strlen(tw->userName)) + 2);
 	tweet->coords = malloc((strlen(tw->coords)) + 2);
 	tweet->language = malloc((strlen(tw->language)) + 2);
 
+	//copying information from input to variable
 	strcpy(tweet->text, tw->text);
 	strcpy(tweet->userName, tw->userName);
 	strcpy(tweet->coords, tw->coords);
 	strcpy(tweet->language, tw->language);
 
+	//append separatos and strings endings
 	tweet->text[strlen(tw->text)] = END_FIELD;
 	tweet->text[strlen(tw->text)+1] = '\0';
 	tweet->userName[strlen(tw->userName)] = END_FIELD;
@@ -370,16 +400,17 @@ int writeTweet(char *filename, TWEET *tw){
 	tweet->language[strlen(tw->language)] = END_FIELD;
 	tweet->language[strlen(tw->language)+1] = '\0';
 	
+	//finish copy information
 	tweet->favoriteCount = tw->favoriteCount;
 	tweet->retweetCount = tw->retweetCount;
 	tweet->viewsCount = tw->viewsCount;
 
 	
-	int tweetsize = tweetSize(tweet);  //tamanho do tweet a ser inserido
+	int tweetsize = tweetSize(tweet);  //insert tweets size
 	long previousOffset, byteOffset;
 	long stackHead = 0;
 	
-	char *datafilename = getDataFileName(filename); //nome do arquivo de dados
+	char *datafilename = getDataFileName(filename); //data file name
 	FILE *arq = fopen(datafilename, "a");
 	arq = freopen(datafilename, "r+", arq);
 
@@ -392,21 +423,23 @@ int writeTweet(char *filename, TWEET *tw){
 	fseek(arq, 0, SEEK_SET);
 
 	if(stackHead == 0)
-		if(fread(&stackHead, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //cabeça da pilha de removidos
+		if(fread(&stackHead, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //romved stack's head
 	
-	if(stackHead == -1){ // não existe espaço logicamente removido
+	if(stackHead == -1){ // there is no logical removed space
 		if(fseek(arq, 0, SEEK_END) != 0) goto WRITETWEET_EXIT;
 		byteOffset = ftell(arq);
+		//append tweet
 		flushTweet(datafilename, byteOffset, tweetsize, tweet);
-	}else{//existe espaço logicamente removido
-		byteOffset = bestFit(datafilename, tweetsize, &previousOffset); //byteoffset para a inserção do tweet
+	}else{//logical removed space exists
+		byteOffset = bestFit(datafilename, tweetsize, &previousOffset); //insert's tweet byteoffset
 		int fieldSize;
-		if(byteOffset == -1){ // nao tem onde colocar o registro. Append
+		if(byteOffset == -1){ //there is no free space for tweet, append it
 			if(fseek(arq, 0, SEEK_END) != 0) goto WRITETWEET_EXIT;
 			byteOffset = ftell(arq);
-		}else{ // tem onde colocar o registro entre os espaços removidos
-			if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //posicionado o cursor para o inicio do offset de insercao
-			if(fread(&fieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo o tamanho do campo de insersao
+		}else{ //there is a space to insert the tweet
+			if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //moving to insert's position
+			if(fread(&fieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT; //reading inserting field size
+			//comparing fieldsize with tweet size
 			fieldSize = abs(fieldSize);
 			int newFieldSize = fieldSize - (tweetsize + sizeof(int));
 			if(previousOffset == -1){
@@ -415,24 +448,24 @@ int writeTweet(char *filename, TWEET *tw){
 				previousOffset = previousOffset - sizeof(int);
 			}
 
-			if(newFieldSize < minTweetSize){ //o tamanho do campo de insercao eh muito pequeno
+			if(newFieldSize < minTweetSize){ //inserting fieldsize is not enough, so ew add it to tweet insertion
 				long nextOffset;
-				if(fseek(arq, byteOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT; //cursor antes do long que indica o proximo campo removido 
-				if(fread(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //lendo a posicao do proximo campo removido
-				if(fseek(arq, previousOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //movendo cursor para o campo anterior
-				if(fwrite(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo a proxima posicao no campo anterior
+				if(fseek(arq, byteOffset + sizeof(int), SEEK_SET) != 0) goto WRITETWEET_EXIT; //moving to long to read field size 
+				if(fread(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //reading field size
+				if(fseek(arq, previousOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT; //moving cursor to previus field
+				if(fwrite(&nextOffset, sizeof(long), 1, arq) <= 0) goto WRITETWEET_EXIT; //writing next position on previous field
 				if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;
-			}else{//o campo eh muito pequeno
-				if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;//posicionando o cursor para o comeco do campo 
-				byteOffset += sizeof(int) + newFieldSize;//atualizando a variavel de posicao do tweet a ser inserido, deixando um espaco removido antes
-				newFieldSize = -abs(newFieldSize);//atualizando o tamanho do campo novo para removido (negativo)			
-				if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;//escrevendo o novo valor do campo
+			}else{//field is too small
+				if(fseek(arq, byteOffset, SEEK_SET) != 0) goto WRITETWEET_EXIT;//moving cursor to field's start position
+				byteOffset += sizeof(int) + newFieldSize;//updating byteoffset to write the tweet at the field's end
+				newFieldSize = -abs(newFieldSize);//updating fieldsize to logical removed (negative size)			
+				if(fwrite(&newFieldSize, sizeof(int), 1, arq) <= 0) goto WRITETWEET_EXIT;//writing new size
 			}
 		}
-		flushTweet(datafilename, byteOffset, tweetsize, tweet);//inserindo tweet 
+		flushTweet(datafilename, byteOffset, tweetsize, tweet);//writing tweet to file
 
 	}
-	//atualizando os indices
+	//updating indeces
 	updateIndexFiles(tweet, byteOffset, filename);
 
 	if(arq != NULL) fclose(arq);
@@ -1120,12 +1153,12 @@ int removeTweet(char *filename, long offset) {
 		goto REMOVE_TWEET_EXIT;
 
 	fclose(file);
-	free(datafilename);
+	free(dataFileName);
 	return 1;
 
 REMOVE_TWEET_EXIT:
 	fclose(file);
-	free(datafilename);
+	free(dataFileName);
 	return 0;
 }
 
