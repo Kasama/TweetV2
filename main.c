@@ -160,7 +160,8 @@ void cmdRemove(char *fileName){
 	offsets = findDataOffsetByFavoriteCount(fileName, favorites, &amount);
 
 	getchar();
-	for (int i = 0; i < amount; i++){
+	int i;
+	for (i = 0; i < amount; i++){
 		printf("Tweet %d\n", i+1);
 		TWEET *tt;
 		tt = readTweet(fileName, offsets[i]);
@@ -256,7 +257,8 @@ void cmdRequest(char *fileName){
 		printf("Could not find requested Tweet(s). Maybe it does not exist\n");
 	}else{
 		getchar();
-		for (int i = 0; i < amount; i++){
+		int i;
+		for (i = 0; i < amount; i++){
 			TWEET *tt;
 			tt = readTweet(fileName, offsets[i]);
 			printTweet(tt);
