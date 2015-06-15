@@ -1036,7 +1036,7 @@ void printTweet(TWEET *tweet){
 
 	printf("Tweet: %s\n", 			tweet->text);
 	printf("User: %s\n" , 	 		tweet->userName);
-	printf("Coordinate: %s\n", 		tweet->coords);
+	printf("Coordinates: %s\n", 		tweet->coords);
 	printf("Language: %s\n",		tweet->language);
 	printf("Favorited %d time%s",tweet->favoriteCount, (tweet->favoriteCount <= 1)?"\n":"s\n");
 	printf("Retweeted %d time%s",tweet->retweetCount, (tweet->retweetCount <= 1)?"\n":"s\n");
@@ -1059,43 +1059,46 @@ void destroyTweet (TWEET **tweet){
 	tweet = NULL;
 }
 
+// Get the elements that are in *v1 OR *v2
+// resultSize = number of elements in default return
 long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
-	size_t iv1, iv2;
-	long *result, *over;
-	int i, end;
+	size_t iv1, iv2;	// Iterator to *v1 and *v2
+	long *result, *over;	// *result = Default return // *over = vector that still have elements
+	int i, end;	// i = iterator of *over // end = number of elements in *over
 
 	iv1 = iv2 = 0;
 	*resultSize = 0;
 
-	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
-		result = realloc(result, (*resultSize+1) * sizeof(long));	// Cria um espaço no vetor
+	while(iv1 < sz_v1 && iv2 < sz_v2) {	// While have elements on both vectors
+		result = realloc(result, (*resultSize+1) * sizeof(long));	// Create a new position in *result
 
-		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
-			result[*resultSize] = v1[iv1++];	// Inclui ele no vetor.
+		if (v1[iv1] < v2[iv2]) {	// IF element of *v1 is the valueless
+			result[*resultSize] = v1[iv1++];	// Include element in *result
 		}
-		else if (v2[iv2] < v1[iv1]){	// Se elemento de v2 for menor...
-			result[*resultSize] = v2[iv2++];	// Inclui ele no vetor.
+		else if (v2[iv2] < v1[iv1]){	// IF element of *v2 is the valueless
+			result[*resultSize] = v2[iv2++];	// Include element in *result
 		}
-		else {	// Se o elemento de v1 == elemento de v2
-			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
+		else {	// IF element of *v1 == element of *v2
+			result[*resultSize] = v1[iv1++];	// Include only one element in *result
 			iv2++;
 		}
 		(*resultSize)++;
 	}
 
-	if (!(iv1 == sz_v1 && iv2 == sz_v2)) {	// Se ao menos um dos vetores ainda tem elementos:
-		if (iv1 == sz_v1){	// Se acabou os elementos de v1
+	if (!(iv1 == sz_v1 && iv2 == sz_v2)) {	// IF one of the vectors still have elements:
+		if (iv1 == sz_v1){	// IF *v1 reach the end
 			over = v2;
 			i = iv2;
 			end = sz_v2;
 		}
-		else {	// Se acabou os elementos de v2
+		else {	// IF *v2 reach the end
 			over = v1;
 			i = iv1;
 			end = sz_v1;
 		}
 
-		result = realloc(result, (*resultSize + (end - i -1)));	// Cria espaço para os novos elementos
+		// Copy the remaining elements to *result
+		result = realloc(result, (*resultSize + (end - i -1)));
 		for (; i < end; i++){
 			result[*resultSize] = over[i];
 			(*resultSize)++;
@@ -1104,25 +1107,27 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 	return result;
 }
 
+// Get the elements that are in v1 AND v2
+// resultSize = number of elements in default return
 long *match (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
-	size_t iv1, iv2;
-	long *result;
+	size_t iv1, iv2;	// Iterator to *v1 and *v2
+	long *result;	// Default return
 
 	iv1 = iv2 = 0;
 	*resultSize = 0;
 
-	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
-		result = realloc(result, ((*resultSize)+1) * sizeof(long));	// Cria um espaço no vetor
+	while(iv1 < sz_v1 && iv2 < sz_v2) {	// While have elements on both vectors
+		result = realloc(result, ((*resultSize)+1) * sizeof(long));	// Create a new position in *result
 
-		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
-			iv1++;	// Pega o próximo elemento de v1.
+		if (v1[iv1] < v2[iv2]) {	// IF element of *v1 is the valueless
+			iv1++;	// Go to next element in *v1
 		}
-		else if (v2[iv2] < v1[iv1]){	// Se elemento de v2 for menor...
-			iv2++;	// Pega o próximo elemento de v2.
+		else if (v2[iv2] < v1[iv1]){	// IF element of *v2 is the valueless
+			iv2++;	// Go to next element in *v2
 		}
-		else {	// Se o elemento de v1 == elemento de v2
-			result[*resultSize] = v1[iv1++];	// Inclui apenas um no vetor.
-			iv2++;
+		else {	// IF element of *v1 == element of *v2
+			result[*resultSize] = v1[iv1++];	// Insert element in *result
+			iv2++;	// Go to next element in *v1 and *v2
 		}
 		(*resultSize)++;
 	}
