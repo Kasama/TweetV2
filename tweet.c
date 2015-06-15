@@ -867,27 +867,38 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	printf("4\n");
 	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
 		goto RTFFI_EXIT;
+	printf("5\n");
 	if(current.next == -1 || current.fileOffset == offset){
 		tableItem.byteOffset = current.next;
 		if (tableItem.byteOffset == -1){
 			FAVITEM *table;
 			if(fseek(favoriteTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
+	printf("6\n");
 			long tableSize = ftell(favoriteTable) - INDEXHEADER;
 			if(fseek(favoriteTable, INDEXHEADER, SEEK_SET) != 0) goto RTFFI_EXIT;
+	printf("7\n");
 			table = malloc(tableSize);
 			if(table == NULL) goto RTFFI_EXIT;
+	printf("8\n");
 			int nItems = tableSize/sizeof(FAVITEM);
 			if(fread(table, sizeof(FAVITEM), nItems, favoriteTable) <= 0) goto RTFFI_EXIT;
+	printf("9\n");
 			int toRemoveIndex = (tableOffset - INDEXHEADER)/sizeof(FAVITEM);
 			table[toRemoveIndex] = table[nItems-1];
 			nItems--;
-			qsort(table, nItems, sizeof(FAVITEM), compareFavoriteItem);
 			favoriteTable = freopen(tableFileName,"w+",favoriteTable);
 			if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-			if(fwrite(table, sizeof(FAVITEM), nItems, favoriteTable) <= 0) goto RTFFI_EXIT;
+			printf("10\n");
+			if (nItems != 0){
+				qsort(table, nItems, sizeof(FAVITEM), compareFavoriteItem);
+				if(fwrite(table, sizeof(FAVITEM), nItems, favoriteTable) <= 0) goto RTFFI_EXIT;
+				printf("11\n");
+			}
 		}else{
 			if(fseek(favoriteTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
+			printf("12\n");
 			if(fwrite(&tableItem, sizeof tableItem, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+			printf("13\n");
 		}
 	}else{
 		long toUpdate;
@@ -895,17 +906,29 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 			previous = current;
 			toUpdate = ftell(favoriteList) - sizeof(FAVLISTITEM);
 			if(fseek(favoriteList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
+			printf("14\n");
 			if(fread(&current, sizeof current, 1, favoriteList) <= 0) goto RTFFI_EXIT;
+			printf("15\n");
 		}while(current.fileOffset != offset || current.next != -1);
 		previous.next = current.next;
 		if(fseek(favoriteList, toUpdate, SEEK_SET) != 0) goto RTFFI_EXIT;
+		printf("16\n");
 		if(fwrite(&previous, sizeof previous, 1, favoriteList) <= 0) goto RTFFI_EXIT;
+		printf("17\n");
 	}
 	if(fseek(favoriteTable, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
+	printf("18\n");
 	if(fseek(favoriteList, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
+	printf("19\n");
 	tableStatus = !tableStatus;
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+	printf("20\n");
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteList) <= 0) goto RTFFI_EXIT;
+	printf("21\n");
+
+	fclose(favoriteTable);
+	fclose(favoriteList);
+	return 1;
 
 RTFFI_EXIT:
 	fclose(favoriteTable);
@@ -949,10 +972,12 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 			int toRemoveIndex = (tableOffset - INDEXHEADER)/sizeof(LANGITEM);
 			table[toRemoveIndex] = table[nItems-1];
 			nItems--;
-			qsort(table, nItems, sizeof(LANGITEM), compareLanguageItem);
 			languageTable = freopen(tableFileName,"w+",languageTable);
 			if(fwrite(&tableStatus, sizeof tableStatus, 1, languageTable) <= 0) goto RTFFI_EXIT;
-			if(fwrite(table, sizeof(LANGITEM), nItems, languageTable) <= 0) goto RTFFI_EXIT;
+			if (nItems != 0){
+				qsort(table, nItems, sizeof(LANGITEM), compareLanguageItem);
+				if(fwrite(table, sizeof(LANGITEM), nItems, languageTable) <= 0) goto RTFFI_EXIT;
+			}
 		}else{
 			if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 			if(fwrite(&tableItem, sizeof tableItem, 1, languageTable) <= 0) goto RTFFI_EXIT;
@@ -974,6 +999,10 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 	tableStatus = !tableStatus;
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, languageTable) <= 0) goto RTFFI_EXIT;
 	if(fwrite(&tableStatus, sizeof tableStatus, 1, languageList) <= 0) goto RTFFI_EXIT;
+
+	fclose(languageTable);
+	fclose(languageList);
+	return 1;
 
 RTFFI_EXIT:
 	fclose(languageTable);
@@ -1097,7 +1126,7 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 		}
 
 		result = realloc(result, (*resultSize + (end - i -1)));	// Cria espaço para os novos elementos
-		for (i; i < end; i++){
+		for (; i < end; i++){
 			result[*resultSize] = over[i];
 			(*resultSize)++;
 		}
