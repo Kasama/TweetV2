@@ -278,7 +278,7 @@ static void updateFavoriteCountIndexFiles(char* table, char* list, TWEET *tweet,
 
 	fread(favVector, sizeof(FAVITEM), size, indexTable);
 
-	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(FAVITEM), compareLanguageItem);	
+	int index = binarySearch(&newEntryOnTab, favVector, size, sizeof(FAVITEM), compareFavoriteItem);	
 	int found = index;
 
 	if(found == -1){
@@ -853,7 +853,7 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	//marking table status as not updated
 	int tableStatus = !UPDATED;
 	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-	printf("2\n");
+	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteList) <= 0) goto RTFFI_EXIT;
 	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByFavoriteCount(filename, removedTweet->favoriteCount);
 	//getting the byteOffset for the item in the list index file
@@ -867,66 +867,45 @@ static int removeTweetFromFavoriteIndex(char *filename, TWEET *removedTweet, lon
 	printf("4\n");
 	if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
 		goto RTFFI_EXIT;
-	printf("5\n");
-	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
-	if(current.next == -1 && current.fileOffset == offset) {
-		if(fseek(favoriteTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
-	printf("6\n");
-		long sizeOfTableFile = ftell(favoriteTable);
-		//we load the table index file to the memory
-		FAVITEM *aux = (FAVITEM *) malloc(sizeOfTableFile - INDEXHEADER);
-		if (aux == NULL) goto RTFFI_EXIT;
-	printf("7\n");
-		//swap the last item in the list with the one to be removed
-		int tabIndex = (tableOffset - INDEXHEADER)/sizeof(FAVITEM);
-		int lastTabIndex = (sizeOfTableFile - INDEXHEADER)/sizeof(FAVITEM);
-		aux[tabIndex] = aux[lastTabIndex];
-		//realloc the size of the list, cropping the deleted item out
-		aux = realloc(aux, sizeOfTableFile - INDEXHEADER - sizeof(FAVITEM));
-		favoriteTable = freopen(tableFileName, "w+", favoriteTable);
-		fseek(favoriteTable, INDEXHEADER, SEEK_SET);
-		if(aux != NULL) {
-			//sort it again
-			qsort(aux, lastTabIndex, sizeof(FAVITEM), compareFavoriteItem);
-			//and write it back to the file
-			if(fwrite(aux, sizeOfTableFile - INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-	printf("8\n");
-			//as we've finished removing the element, we update the table status to updated and return
+	if(current.next == -1 || current.fileOffset == offset){
+		tableItem.byteOffset = current.next;
+		if (tableItem.byteOffset == -1){
+			FAVITEM *table;
+			if(fseek(favoriteTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
+			long tableSize = ftell(favoriteTable) - INDEXHEADER;
+			if(fseek(favoriteTable, INDEXHEADER, SEEK_SET) != 0) goto RTFFI_EXIT;
+			table = malloc(tableSize);
+			if(table == NULL) goto RTFFI_EXIT;
+			int nItems = tableSize/sizeof(FAVITEM);
+			if(fread(table, sizeof(FAVITEM), nItems, favoriteTable) <= 0) goto RTFFI_EXIT;
+			int toRemoveIndex = (tableOffset - INDEXHEADER)/sizeof(FAVITEM);
+			table[toRemoveIndex] = table[nItems-1];
+			nItems--;
+			qsort(table, nItems, sizeof(FAVITEM), compareFavoriteItem);
+			favoriteTable = freopen(tableFileName,"w+",favoriteTable);
+			if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+			if(fwrite(table, sizeof(FAVITEM), nItems, favoriteTable) <= 0) goto RTFFI_EXIT;
+		}else{
+			if(fseek(favoriteTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
+			if(fwrite(&tableItem, sizeof tableItem, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
 		}
-		fseek(favoriteTable, 0, SEEK_SET);
-		tableStatus = UPDATED;
-		if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-	printf("9\n");
-		free(aux);
-		fclose(favoriteTable);
-		fclose(favoriteList);
-		return 1;
+	}else{
+		long toUpdate;
+		do {
+			previous = current;
+			toUpdate = ftell(favoriteList) - sizeof(FAVLISTITEM);
+			if(fseek(favoriteList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
+			if(fread(&current, sizeof current, 1, favoriteList) <= 0) goto RTFFI_EXIT;
+		}while(current.fileOffset != offset || current.next != -1);
+		previous.next = current.next;
+		if(fseek(favoriteList, toUpdate, SEEK_SET) != 0) goto RTFFI_EXIT;
+		if(fwrite(&previous, sizeof previous, 1, favoriteList) <= 0) goto RTFFI_EXIT;
 	}
-	//finding the item in the list file and removing it
-	long toUpdate;
-	do {
-		toUpdate = ftell(favoriteList) - sizeof(FAVLISTITEM);
-		printf("falhou no fseek offset: %ld\n", current.next);
-		if(fseek(favoriteList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
-	printf("10\n");
-		previous = current;
-		if(fread(&current, sizeof(FAVLISTITEM), 1, favoriteList) <= 0)
-			goto RTFFI_EXIT;
-	printf("11\n");
-	} while(current.fileOffset != offset && current.next != -1);
-	printf("sai do while\n");
-
-	fseek(favoriteList, toUpdate, SEEK_SET);
-	previous.next = current.next;
-	if(fwrite(&previous, sizeof previous, 1, favoriteList) <= 0) goto RTFFI_EXIT;
-	//setting the table status to updated and returning
-	fseek(favoriteTable, 0, SEEK_SET);
-	tableStatus = UPDATED;
-	if(fwrite(&tableStatus, INDEXHEADER, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
-	printf("12\n");
-	fclose(favoriteTable);
-	fclose(favoriteList);
-	return 1;
+	if(fseek(favoriteTable, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
+	if(fseek(favoriteList, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
+	tableStatus = !tableStatus;
+	if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteTable) <= 0) goto RTFFI_EXIT;
+	if(fwrite(&tableStatus, sizeof tableStatus, 1, favoriteList) <= 0) goto RTFFI_EXIT;
 
 RTFFI_EXIT:
 	fclose(favoriteTable);
@@ -943,72 +922,60 @@ static int removeTweetFromLanguageIndex(char *filename, TWEET *removedTweet, lon
 
 	//marking table status as not updated
 	int tableStatus = !UPDATED;
-	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
+	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFFI_EXIT;
+	if(fwrite(&tableStatus, INDEXHEADER, 1, languageList) <= 0) goto RTFFI_EXIT;
 	//getting the offset of the tweet in the table index file
 	long tableOffset = findIndexOffsetByLanguage(filename, removedTweet->language);
 	//getting the byteOffset for the item in the list index file
 	LANGITEM tableItem;
-	if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
-	if(fread(&tableItem, sizeof(LANGITEM), 1, languageTable) <= 0) goto RTFLI_EXIT;
-	//going to the list index file
+	if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
+	if(fread(&tableItem, sizeof(LANGITEM), 1, languageTable) <= 0) goto RTFFI_EXIT;
+	//going to the list index file 
 	LANGLISTITEM current, previous;
-	if(fseek(languageList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFLI_EXIT;
+	if(fseek(languageList, tableItem.byteOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
 	if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
-		goto RTFLI_EXIT;
-	//if the next in the list doesn't exist and the byteoffset is the same as the tweet we're removing
-	if(current.next == -1 && current.fileOffset == offset) {
-		if(fseek(languageTable, 0, SEEK_END) != 0) goto RTFLI_EXIT;
-		long sizeOfTableFile = ftell(languageTable);
-		//we load the table index file to the memory
-		LANGITEM *aux = (LANGITEM *) malloc(sizeOfTableFile - INDEXHEADER);
-		if (aux == NULL) goto RTFLI_EXIT;
-		//swap the last item in the list with the one to be removed
-		int tabIndex = (tableOffset - INDEXHEADER)/sizeof(LANGITEM);
-		int lastTabIndex = ((sizeOfTableFile - INDEXHEADER)/sizeof(LANGITEM))-1;
-		fseek(languageTable, INDEXHEADER, SEEK_SET);
-		fread(aux, sizeof(LANGITEM), lastTabIndex+1, languageTable);
-		aux[tabIndex] = aux[lastTabIndex];
-		//realloc the size of the list, cropping the deleted item out
-		aux = realloc(aux, sizeOfTableFile - INDEXHEADER - sizeof(LANGITEM));
-		languageTable = freopen(tableFileName, "w+", languageTable);
-		fseek(languageTable, INDEXHEADER, SEEK_SET);
-		if (aux != NULL){
-			//sort it again
-			qsort(aux, lastTabIndex, sizeof(LANGITEM), compareLanguageItem);
-			//and write it back to the table index file
-			if(fwrite(aux, sizeof(LANGITEM), lastTabIndex, languageTable)) goto RTFLI_EXIT;
-			//as we've finished removing the element, we update the table status to updated and return
+		goto RTFFI_EXIT;
+	if(current.next == -1 || current.fileOffset == offset){
+		tableItem.byteOffset = current.next;
+		if (tableItem.byteOffset == -1){
+			LANGITEM *table;
+			if(fseek(languageTable, 0, SEEK_END) != 0) goto RTFFI_EXIT;
+			long tableSize = ftell(languageTable) - INDEXHEADER;
+			if(fseek(languageTable, INDEXHEADER, SEEK_SET) != 0) goto RTFFI_EXIT;
+			table = malloc(tableSize);
+			if(table == NULL) goto RTFFI_EXIT;
+			int nItems = tableSize/sizeof(LANGITEM);
+			if(fread(table, sizeof(LANGITEM), nItems, languageTable) <= 0) goto RTFFI_EXIT;
+			int toRemoveIndex = (tableOffset - INDEXHEADER)/sizeof(LANGITEM);
+			table[toRemoveIndex] = table[nItems-1];
+			nItems--;
+			qsort(table, nItems, sizeof(LANGITEM), compareLanguageItem);
+			languageTable = freopen(tableFileName,"w+",languageTable);
+			if(fwrite(&tableStatus, sizeof tableStatus, 1, languageTable) <= 0) goto RTFFI_EXIT;
+			if(fwrite(table, sizeof(LANGITEM), nItems, languageTable) <= 0) goto RTFFI_EXIT;
+		}else{
+			if(fseek(languageTable, tableOffset, SEEK_SET) != 0) goto RTFFI_EXIT;
+			if(fwrite(&tableItem, sizeof tableItem, 1, languageTable) <= 0) goto RTFFI_EXIT;
 		}
-		fseek(languageTable, 0, SEEK_SET);
-		tableStatus = UPDATED;
-		if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
-		free(aux);
-		fclose(languageTable);
-		fclose(languageList);
-		return 1;
+	}else{
+		long toUpdate;
+		do {
+			previous = current;
+			toUpdate = ftell(languageList) - sizeof(LANGLISTITEM);
+			if(fseek(languageList, current.next, SEEK_SET) != 0) goto RTFFI_EXIT;
+			if(fread(&current, sizeof current, 1, languageList) <= 0) goto RTFFI_EXIT;
+		}while(current.fileOffset != offset || current.next != -1);
+		previous.next = current.next;
+		if(fseek(languageList, toUpdate, SEEK_SET) != 0) goto RTFFI_EXIT;
+		if(fwrite(&previous, sizeof previous, 1, languageList) <= 0) goto RTFFI_EXIT;
 	}
-	//finding the item in the list file and removing it
-	long toUpdate;
-	do {
-		toUpdate = ftell(languageList) - sizeof(LANGLISTITEM);
-		if(fseek(languageList, current.next, SEEK_SET) != 0) goto RTFLI_EXIT;
-		previous = current;
-		if(fread(&current, sizeof(LANGLISTITEM), 1, languageList) <= 0)
-			goto RTFLI_EXIT;
-	} while(current.fileOffset != offset && current.next != -1);
+	if(fseek(languageTable, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
+	if(fseek(languageList, 0, SEEK_SET) != 0) goto RTFFI_EXIT;
+	tableStatus = !tableStatus;
+	if(fwrite(&tableStatus, sizeof tableStatus, 1, languageTable) <= 0) goto RTFFI_EXIT;
+	if(fwrite(&tableStatus, sizeof tableStatus, 1, languageList) <= 0) goto RTFFI_EXIT;
 
-	fseek(languageList, toUpdate, SEEK_SET);
-	previous.next = current.next;
-	fwrite(&previous, sizeof previous, 1, languageList);
-	//setting the table status to updated and returning
-	fseek(languageTable, 0, SEEK_SET);
-	tableStatus = UPDATED;
-	if(fwrite(&tableStatus, INDEXHEADER, 1, languageTable) <= 0) goto RTFLI_EXIT;
-	fclose(languageTable);
-	fclose(languageList);
-	return 1;
-
-RTFLI_EXIT:
+RTFFI_EXIT:
 	fclose(languageTable);
 	fclose(languageList);
 	return 0;
@@ -1097,13 +1064,13 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 	size_t iv1, iv2;
 	long *result, *over;
 	int i, end;
-	
+
 	iv1 = iv2 = 0;
 	*resultSize = 0;
-	
+
 	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
 		result = realloc(result, (*resultSize+1) * sizeof(long));	// Cria um espaço no vetor
-		
+
 		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
 			result[*resultSize] = v1[iv1++];	// Inclui ele no vetor.
 		}
@@ -1116,7 +1083,7 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 		}
 		(*resultSize)++;
 	}
-	
+
 	if (!(iv1 == sz_v1 && iv2 == sz_v2)) {	// Se ao menos um dos vetores ainda tem elementos:
 		if (iv1 == sz_v1){	// Se acabou os elementos de v1
 			over = v2;
@@ -1128,10 +1095,9 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 			i = iv1;
 			end = sz_v1;
 		}
-		
+
 		result = realloc(result, (*resultSize + (end - i -1)));	// Cria espaço para os novos elementos
-		
-		for (; i < end; i++){
+		for (i; i < end; i++){
 			result[*resultSize] = over[i];
 			(*resultSize)++;
 		}
@@ -1142,13 +1108,13 @@ long *merge (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 long *match (long *v1, long *v2, size_t sz_v1, size_t sz_v2, long *resultSize){
 	size_t iv1, iv2;
 	long *result;
-	
+
 	iv1 = iv2 = 0;
 	*resultSize = 0;
-	
+
 	while(iv1 < sz_v1 && iv2 < sz_v2) {	// Enquanto houver elementos NOS DOIS vetores
 		result = realloc(result, (*resultSize+1) * sizeof(long));	// Cria um espaço no vetor
-		
+
 		if (v1[iv1] < v2[iv2]) {	// Se elemento de v1 for menor...
 			iv1++;	// Pega o próximo elemento de v1.
 		}
