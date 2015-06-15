@@ -574,6 +574,7 @@ TWEET *readTweet(char *filename, long offset){
 	return tw; 
 }
 
+//get a table index filename for language using the base filename
 static char *getLanguageTableIndexFileName(char *filename){
 	char *file;
 	file = getDataFileName(filename);
@@ -581,13 +582,15 @@ static char *getLanguageTableIndexFileName(char *filename){
 	return file;
 }
 
-static char *getFavoriteTableIndexFileName(char *filename){/*{*/
+//get a table index filename for favorite using the base filename
+static char *getFavoriteTableIndexFileName(char *filename){
 	char *file;
 	file = getDataFileName(filename);
 	strcpy(&(file[strlen(file)-4]), ".itf");
 	return file;
-}/*}*/
+}
 
+//get a list index filename for language using the base filename
 static char *getLanguageListIndexFileName(char *filename){
 	char *file;
 	file = getDataFileName(filename);
@@ -595,6 +598,7 @@ static char *getLanguageListIndexFileName(char *filename){
 	return file;
 }
 
+//get a list index filename for favorite using the base filename
 static char *getFavoriteListIndexFileName(char *filename){
 	char *file;
 	file = getDataFileName(filename);
